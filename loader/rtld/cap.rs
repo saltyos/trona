@@ -115,7 +115,7 @@ unsafe fn invoke_untyped_retype(
     let (error, _) = rtld_syscall6(
         SYS_INVOKE,
         untyped_slot as u64,
-        uapi::KERNITE_INV_UNTYPED_RETYPE as u64,
+        uapi::KERNITE_INV0_UNTYPED_RETYPE as u64,
         obj_type as u64,
         size_bits as u64,
         dest_slot as u64,
@@ -132,7 +132,7 @@ unsafe fn invoke_vspace_map(vspace_slot: u32, frame_slot: u32, vaddr: usize, rig
     let (error, _) = rtld_syscall6(
         SYS_INVOKE,
         vspace_slot as u64,
-        uapi::KERNITE_INV_VSPACE_MAP as u64,
+        uapi::KERNITE_INV0_VSPACE_MAP as u64,
         frame_slot as u64,
         vaddr as u64,
         rights as u64,
@@ -149,7 +149,7 @@ unsafe fn invoke_vspace_unmap(vspace_slot: u32, vaddr: usize) -> u64 {
     let (error, _) = rtld_syscall6(
         SYS_INVOKE,
         vspace_slot as u64,
-        uapi::KERNITE_INV_VSPACE_UNMAP as u64,
+        uapi::KERNITE_INV0_VSPACE_UNMAP as u64,
         vaddr as u64,
         0,
         0,

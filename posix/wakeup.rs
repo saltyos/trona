@@ -8,7 +8,7 @@
 //! consume from the calling thread's own `EventQueue`. Records arrive
 //! from two producers:
 //!
-//! - **Timer expiry** — `KERNITE_INV_TIMER_SET` arms the thread's own
+//! - **Timer expiry** — `KERNITE_INV0_TIMER_SET` arms the thread's own
 //!   `Timer` bound to the wakeup EQ. Sleep paths tag their record
 //!   with `WAKEUP_COOKIE_TIMER` so the dispatch loop can recognise
 //!   the wake reason.
@@ -279,7 +279,7 @@ fn arm_signal_watch(eq: u64) -> Result<(), ()> {
     };
     let arm = trona_kernel::syscall::invoke(
         watch,
-        uapi::KERNITE_INV_WATCH_REGISTER as u64,
+        uapi::KERNITE_INV0_WATCH_REGISTER as u64,
         signal_pipe.addr(),
         eq,
         uapi::KERNITE_STATE_READABLE as u64,
@@ -310,7 +310,7 @@ pub fn drain_signal_pipe() -> usize {
 
     let r = trona_kernel::syscall::invoke(
         signal_pipe.addr(),
-        uapi::KERNITE_INV_MP_READ as u64,
+        uapi::KERNITE_INV0_MP_READ as u64,
         0,
         0,
         0,
@@ -342,7 +342,7 @@ pub fn wait_record() -> Option<WakeupRecord> {
     let _ = arm_signal_watch(eq);
     let r = trona_kernel::syscall::invoke(
         eq,
-        uapi::KERNITE_INV_EQ_WAIT as u64,
+        uapi::KERNITE_INV0_EQ_WAIT as u64,
         trona_kernel::ipc::IPC_TIMEOUT_BLOCK_FOREVER,
         0,
         0,
@@ -359,7 +359,7 @@ pub fn wait_record() -> Option<WakeupRecord> {
 pub fn poll_record() -> Option<WakeupRecord> {
     let eq = ensure_wakeup_eq()?;
     let _ = arm_signal_watch(eq);
-    let r = trona_kernel::syscall::invoke(eq, uapi::KERNITE_INV_EQ_POLL as u64, 0, 0, 0, 0);
+    let r = trona_kernel::syscall::invoke(eq, uapi::KERNITE_INV0_EQ_POLL as u64, 0, 0, 0, 0);
     if r.error != 0 || r.value == 0 {
         return None;
     }
@@ -381,7 +381,7 @@ pub fn arm_sleep_timer(deadline_ns: u64) -> i32 {
     };
     let r = trona_kernel::syscall::invoke(
         timer,
-        uapi::KERNITE_INV_TIMER_SET as u64,
+        uapi::KERNITE_INV0_TIMER_SET as u64,
         deadline_ns,
         0,
         eq,
@@ -415,7 +415,8 @@ pub fn cancel_sleep_timer() {
     if timer == 0 {
         return;
     }
-    let _ = trona_kernel::syscall::invoke(timer, uapi::KERNITE_INV_TIMER_CANCEL as u64, 0, 0, 0, 0);
+    let _ =
+        trona_kernel::syscall::invoke(timer, uapi::KERNITE_INV0_TIMER_CANCEL as u64, 0, 0, 0, 0);
 }
 
 /// Reset the calling thread's wakeup state after `fork`. The child

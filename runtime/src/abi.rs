@@ -87,7 +87,7 @@ pub extern "C" fn trona_yield() {
 pub extern "C" fn trona_debug_putchar(c: u8) {
     syscall::invoke(
         caps::kernel_debug_cap().addr(),
-        uapi::KERNITE_INV_KDEBUG_PUTCHAR as u64,
+        uapi::KERNITE_INV0_KDEBUG_PUTCHAR as u64,
         c as u64,
         0,
         0,
@@ -99,7 +99,7 @@ pub extern "C" fn trona_debug_putchar(c: u8) {
 pub extern "C" fn trona_debug_dump_state() {
     syscall::invoke(
         caps::kernel_debug_cap().addr(),
-        uapi::KERNITE_INV_KDEBUG_DUMP_STATE as u64,
+        uapi::KERNITE_INV0_KDEBUG_DUMP_STATE as u64,
         0,
         0,
         0,

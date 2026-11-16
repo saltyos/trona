@@ -450,7 +450,7 @@ impl<D: EqDispatcher> EventLoop<D> {
         release_before_wait();
         let eq_err = trona_kernel::syscall::invoke(
             self.eq_cap,
-            uapi::KERNITE_INV_EQ_WAIT as u64,
+            uapi::KERNITE_INV0_EQ_WAIT as u64,
             // The event loop blocks indefinitely for the next event; a
             // timed wait would pass a finite absolute deadline here.
             trona_kernel::ipc::IPC_TIMEOUT_BLOCK_FOREVER,

@@ -15,7 +15,7 @@
 //! `KERNITE_SYS_INVOKE` carries six payload words. For pipe ops:
 //!
 //! - `cap_ptr` = MessagePipe cap.
-//! - `invoke_label` = `KERNITE_INV_MP_*`.
+//! - `invoke_label` = `KERNITE_INV0_MP_*`.
 //! - `msg_info_word` packs `(label, length, extra_caps)` —
 //!   bits[6:0]=length (0..32), bits[11:7]=extra_caps (0..4),
 //!   bits[51:12]=label.
@@ -320,7 +320,7 @@ unsafe fn mp_write_with_metadata_ctx(
         write_overflow_ctx(ctx, msg);
         let r = invoke(
             mp,
-            uapi::KERNITE_INV_MP_WRITE as u64,
+            uapi::KERNITE_INV0_MP_WRITE as u64,
             info,
             (*msg).regs[0],
             (*msg).regs[1],
@@ -369,7 +369,7 @@ pub unsafe fn mp_read_ctx(
     msg: *mut TronaMsg,
     badge: *mut u64,
 ) -> i32 {
-    let r = invoke(mp, uapi::KERNITE_INV_MP_READ as u64, 0, 0, 0, 0);
+    let r = invoke(mp, uapi::KERNITE_INV0_MP_READ as u64, 0, 0, 0, 0);
     if r.error == 0 {
         unsafe {
             if !badge.is_null() && !ctx.is_null() && !(*ctx).ipc_buffer.is_null() {
@@ -412,7 +412,7 @@ pub unsafe fn mp_call_ctx(
         // The full request body travels in the IPC buffer so the
         // `deadline` can ride invoke register a3 (a4/a5 unused).
         write_call_request_ctx(ctx, msg);
-        let r = invoke(mp, uapi::KERNITE_INV_MP_CALL as u64, info, deadline, 0, 0);
+        let r = invoke(mp, uapi::KERNITE_INV0_MP_CALL as u64, info, deadline, 0, 0);
         if caps > 0 && !ctx.is_null() {
             clear_send_caps_ctx(ctx);
         }
@@ -432,7 +432,7 @@ pub unsafe fn mp_call_ctx(
 /// staging each via `set_send_cap_ctx` first. The caps are taken
 /// from the slice `caps[0..caps_count]` (sender CSpace indices) and
 /// staged into `ipc_buffer.caps[]` before dispatching the
-/// `KERNITE_INV_MP_CALL`.
+/// `KERNITE_INV0_MP_CALL`.
 pub unsafe fn mp_call_with_caps_ctx(
     ctx: *mut IpcContext,
     mp: Cap,

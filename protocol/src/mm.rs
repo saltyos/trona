@@ -189,7 +189,7 @@ pub const MM_FLAG_FIXED_NOREPLACE: u64 = 1 << 4;
 ///   MO cap (typically obtained from `VFS_GET_BACKING_MO` for
 ///   file-backed pager mappings, or `MM_SHM_*` for shm). `regs[5]` is
 ///   the page offset within the MO. mmsrv invokes
-///   `KERNITE_INV_VSPACE_MAP_MO` to install the MO at `hint` (or an
+///   `KERNITE_INV0_VSPACE_MAP_MO` to install the MO at `hint` (or an
 ///   auto-placed VA when `MAP_FIXED` is unset).
 ///
 /// File-backed mmap is a two-step client flow: `VFS_GET_BACKING_MO`

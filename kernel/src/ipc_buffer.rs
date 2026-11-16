@@ -10,8 +10,8 @@ use uapi::{
 };
 
 /// Read the EventRecord the kernel published into the buffer's
-/// reserved area on the most recent successful `KERNITE_INV_EQ_WAIT`
-/// / `KERNITE_INV_EQ_POLL`.
+/// reserved area on the most recent successful `KERNITE_INV0_EQ_WAIT`
+/// / `KERNITE_INV0_EQ_POLL`.
 ///
 /// The kernel writes the record's wire layout (kind:u32, status:u32,
 /// cookie:u64, ...) starting at

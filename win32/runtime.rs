@@ -66,7 +66,7 @@ fn alloc_cap_slot() -> u64 {
 fn release_cap_slot(slot: u64) {
     let _ = crate::syscall::invoke(
         uapi::KERNITE_CAP_SELF_CSPACE as u64,
-        uapi::KERNITE_INV_CNODE_DELETE as u64,
+        uapi::KERNITE_INV0_CNODE_DELETE as u64,
         slot,
         0,
         0,

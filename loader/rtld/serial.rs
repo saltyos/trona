@@ -120,7 +120,7 @@ pub fn fatal(msg: &str) -> ! {
         let _ = rtld_syscall6(
             uapi::KERNITE_SYS_INVOKE as u64,
             uapi::KERNITE_CAP_SELF_TCB as u64,
-            uapi::KERNITE_INV_TCB_YIELD as u64,
+            uapi::KERNITE_INV0_TCB_YIELD as u64,
             0,
             0,
             0,
@@ -141,7 +141,7 @@ pub fn fatal_trona(msg: &str, err: u64) -> ! {
         let _ = rtld_syscall6(
             uapi::KERNITE_SYS_INVOKE as u64,
             uapi::KERNITE_CAP_SELF_TCB as u64,
-            uapi::KERNITE_INV_TCB_YIELD as u64,
+            uapi::KERNITE_INV0_TCB_YIELD as u64,
             0,
             0,
             0,

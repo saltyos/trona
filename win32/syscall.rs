@@ -40,7 +40,7 @@ pub fn invoke(cap_ptr: u64, invoke_label: u64, a2: u64, a3: u64, a4: u64, a5: u6
 pub fn yield_now() {
     let _ = invoke(
         uapi::KERNITE_CAP_SELF_TCB as u64,
-        uapi::KERNITE_INV_TCB_YIELD as u64,
+        uapi::KERNITE_INV0_TCB_YIELD as u64,
         0,
         0,
         0,
@@ -55,7 +55,7 @@ pub fn yield_now() {
 pub fn thread_exit() -> ! {
     let _ = invoke(
         uapi::KERNITE_CAP_SELF_TCB as u64,
-        uapi::KERNITE_INV_TCB_KILL as u64,
+        uapi::KERNITE_INV0_TCB_KILL as u64,
         0,
         0,
         0,

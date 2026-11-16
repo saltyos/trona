@@ -73,7 +73,7 @@ pub fn serial_putc(c: u8) {
     if cap != 0 {
         invoke(
             cap,
-            uapi::KERNITE_INV_KDEBUG_PUTCHAR as u64,
+            uapi::KERNITE_INV0_KDEBUG_PUTCHAR as u64,
             c as u64,
             0,
             0,
@@ -102,7 +102,7 @@ pub fn serial_puts(s: &[u8]) {
             };
             invoke(
                 cap,
-                uapi::KERNITE_INV_KDEBUG_PUTBUF as u64,
+                uapi::KERNITE_INV0_KDEBUG_PUTBUF as u64,
                 s[off..].as_ptr() as u64,
                 chunk as u64,
                 0,

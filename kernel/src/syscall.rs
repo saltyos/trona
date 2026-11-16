@@ -78,7 +78,7 @@ pub fn invoke(cap_ptr: u64, invoke_label: u64, a2: u64, a3: u64, a4: u64, a5: u6
 pub fn futex_wait(addr: *const u32, expected: u32) -> u64 {
     invoke(
         uapi::KERNITE_CAP_SELF_VSPACE as u64,
-        uapi::KERNITE_INV_VSPACE_FUTEX_WAIT as u64,
+        uapi::KERNITE_INV0_VSPACE_FUTEX_WAIT as u64,
         addr as u64,
         expected as u64,
         0,
@@ -94,7 +94,7 @@ pub fn futex_wait(addr: *const u32, expected: u32) -> u64 {
 pub fn futex_wait_timeout(addr: *const u32, expected: u32, timeout_ns: u64) -> u64 {
     invoke(
         uapi::KERNITE_CAP_SELF_VSPACE as u64,
-        uapi::KERNITE_INV_VSPACE_FUTEX_WAIT as u64,
+        uapi::KERNITE_INV0_VSPACE_FUTEX_WAIT as u64,
         addr as u64,
         expected as u64,
         timeout_ns,
@@ -109,7 +109,7 @@ pub fn futex_wait_timeout(addr: *const u32, expected: u32, timeout_ns: u64) -> u
 pub fn futex_wake(addr: *const u32, count: u32) -> u64 {
     invoke(
         uapi::KERNITE_CAP_SELF_VSPACE as u64,
-        uapi::KERNITE_INV_VSPACE_FUTEX_WAKE as u64,
+        uapi::KERNITE_INV0_VSPACE_FUTEX_WAKE as u64,
         addr as u64,
         count as u64,
         0,
@@ -132,7 +132,7 @@ pub fn futex_requeue(
 ) -> u64 {
     invoke(
         uapi::KERNITE_CAP_SELF_VSPACE as u64,
-        uapi::KERNITE_INV_VSPACE_FUTEX_REQUEUE as u64,
+        uapi::KERNITE_INV0_VSPACE_FUTEX_REQUEUE as u64,
         addr as u64,
         requeue_addr as u64,
         ((wake_count as u64) << 32) | (requeue_count as u64),
@@ -153,7 +153,7 @@ pub fn futex_requeue(
 pub fn thread_exit() -> ! {
     let _ = invoke(
         uapi::KERNITE_CAP_SELF_TCB as u64,
-        uapi::KERNITE_INV_TCB_EXIT_SELF as u64,
+        uapi::KERNITE_INV0_TCB_EXIT_SELF as u64,
         0,
         0,
         0,
@@ -178,7 +178,7 @@ pub fn thread_exit() -> ! {
 pub fn rng_read_bytes(rng_cap: u64, dst: *mut u8, len: usize) -> TronaResult {
     invoke(
         rng_cap,
-        uapi::KERNITE_INV_RNG_READ as u64,
+        uapi::KERNITE_INV0_RNG_READ as u64,
         dst as u64,
         len as u64,
         0,
@@ -196,7 +196,7 @@ pub fn rng_read_bytes(rng_cap: u64, dst: *mut u8, len: usize) -> TronaResult {
 pub fn system_get_meminfo_raw(sysinfo_cap: u64, out_uaddr: u64) -> u64 {
     invoke(
         sysinfo_cap,
-        uapi::KERNITE_INV_SYSINFO_GET_MEMINFO as u64,
+        uapi::KERNITE_INV0_SYSINFO_GET_MEMINFO as u64,
         out_uaddr,
         0,
         0,
@@ -230,7 +230,7 @@ pub fn system_get_info_raw(
 ) -> TronaResult {
     invoke(
         sysinfo_cap,
-        uapi::KERNITE_INV_SYSINFO_GET_INFO as u64,
+        uapi::KERNITE_INV0_SYSINFO_GET_INFO as u64,
         header_uaddr,
         cpu_array_uaddr,
         capacity,
@@ -258,7 +258,7 @@ pub fn system_get_info<H, C>(
 pub fn system_shutdown(syscontrol_cap: u64) -> ! {
     invoke(
         syscontrol_cap,
-        uapi::KERNITE_INV_SYSTEM_SHUTDOWN as u64,
+        uapi::KERNITE_INV0_SYSTEM_SHUTDOWN as u64,
         0,
         0,
         0,
@@ -274,7 +274,7 @@ pub fn system_shutdown(syscontrol_cap: u64) -> ! {
 pub fn clock_read_monotonic(clock_cap: u64) -> u64 {
     let r = invoke(
         clock_cap,
-        uapi::KERNITE_INV_CLOCK_READ as u64,
+        uapi::KERNITE_INV0_CLOCK_READ as u64,
         uapi::KERNITE_CLOCK_ID_MONOTONIC as u64,
         0,
         0,
@@ -289,7 +289,7 @@ pub fn clock_read_monotonic(clock_cap: u64) -> u64 {
 pub fn clock_read_realtime(clock_cap: u64) -> u64 {
     let r = invoke(
         clock_cap,
-        uapi::KERNITE_INV_CLOCK_READ as u64,
+        uapi::KERNITE_INV0_CLOCK_READ as u64,
         uapi::KERNITE_CLOCK_ID_REALTIME as u64,
         0,
         0,
@@ -305,7 +305,7 @@ pub fn clock_read_realtime(clock_cap: u64) -> u64 {
 pub fn yield_now() {
     let _ = invoke(
         uapi::KERNITE_CAP_SELF_TCB as u64,
-        uapi::KERNITE_INV_TCB_YIELD as u64,
+        uapi::KERNITE_INV0_TCB_YIELD as u64,
         0,
         0,
         0,

@@ -285,7 +285,7 @@ impl TronaSysMemInfo {
 }
 
 // ---------------------------------------------------------------------------
-// Per-VSpace memory accounting (returned by `KERNITE_INV_VSPACE_GET_MEM_STATS`).
+// Per-VSpace memory accounting (returned by `KERNITE_INV0_VSPACE_GET_MEM_STATS`).
 // ---------------------------------------------------------------------------
 
 #[repr(C)]
@@ -310,7 +310,7 @@ pub struct TronaVSpaceMemStats {
 }
 
 /// Per-range resident-memory summary for a VSpace. Returned by
-/// `KERNITE_INV_VSPACE_GET_RANGE_STATS`. `pss_bytes` is byte-precise
+/// `KERNITE_INV0_VSPACE_GET_RANGE_STATS`. `pss_bytes` is byte-precise
 /// so userland formatters can round once after summing per-page
 /// shares.
 #[repr(C)]

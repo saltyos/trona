@@ -153,31 +153,31 @@ pub static mut __trona_cap_service_ep: u64 = 0;
 #[linkage = "weak"]
 pub static mut __trona_cap_service_client_ep: u64 = 0;
 
-/// `KernelRng` cap (`ROLE_KERNEL_RNG`). Carries `KERNITE_INV_RNG_READ`.
+/// `KernelRng` cap (`ROLE_KERNEL_RNG`). Carries `KERNITE_INV0_RNG_READ`.
 #[unsafe(no_mangle)]
 #[linkage = "weak"]
 pub static mut __trona_cap_kernel_rng: u64 = 0;
 
-/// `Clock` cap (`ROLE_CLOCK`). Carries `KERNITE_INV_CLOCK_READ` with
+/// `Clock` cap (`ROLE_CLOCK`). Carries `KERNITE_INV0_CLOCK_READ` with
 /// `KERNITE_CLOCK_ID_MONOTONIC` / `_REALTIME` arg.
 #[unsafe(no_mangle)]
 #[linkage = "weak"]
 pub static mut __trona_cap_clock: u64 = 0;
 
 /// `SystemControl` cap (`ROLE_SYSTEM_CONTROL`). Held only by the
-/// supervisor; carries `KERNITE_INV_SYSTEM_SHUTDOWN`/`SYSTEM_REBOOT`.
+/// supervisor; carries `KERNITE_INV0_SYSTEM_SHUTDOWN`/`SYSTEM_REBOOT`.
 #[unsafe(no_mangle)]
 #[linkage = "weak"]
 pub static mut __trona_cap_system_control: u64 = 0;
 
 /// `SystemInfo` cap (`ROLE_SYSTEM_INFO`). Carries
-/// `KERNITE_INV_SYSTEM_GET_INFO` / `_GET_MEMINFO`.
+/// `KERNITE_INV0_SYSTEM_GET_INFO` / `_GET_MEMINFO`.
 #[unsafe(no_mangle)]
 #[linkage = "weak"]
 pub static mut __trona_cap_system_info: u64 = 0;
 
 /// `KernelDebug` cap (`ROLE_KERNEL_DEBUG`). Privileged debug-channel cap
-/// carrying `KERNITE_INV_KDEBUG_*`. Only debug-authorised processes
+/// carrying `KERNITE_INV0_KDEBUG_*`. Only debug-authorised processes
 /// receive it.
 #[unsafe(no_mangle)]
 #[linkage = "weak"]

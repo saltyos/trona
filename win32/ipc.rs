@@ -101,7 +101,7 @@ pub unsafe fn mp_call_ctx(
                 (*(*active_ctx).ipc_buffer).msg[2 + i] = (*msg).regs[i];
             }
         }
-        let r = invoke(ep, uapi::KERNITE_INV_MP_CALL as u64, info, deadline, 0, 0);
+        let r = invoke(ep, uapi::KERNITE_INV0_MP_CALL as u64, info, deadline, 0, 0);
         if caps > 0 && !ctx.is_null() {
             clear_send_caps_ctx(ctx);
         }
@@ -146,7 +146,7 @@ pub unsafe fn mp_write_ctx(ctx: *mut IpcContext, ep: u64, msg: *const TronaMsg) 
         write_overflow_ctx(ctx, msg);
         let r = invoke(
             ep,
-            uapi::KERNITE_INV_MP_WRITE as u64,
+            uapi::KERNITE_INV0_MP_WRITE as u64,
             info,
             (*msg).regs[0],
             (*msg).regs[1],

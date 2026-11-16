@@ -45,7 +45,7 @@ pub const fn direct_entry_rsp(stack_top: u64) -> u64 {
 pub fn untyped_retype(untyped: CapRef, new_type: u64, size_bits: u64, dest_slot: u64) -> i32 {
     invoke(
         untyped.addr(),
-        uapi::KERNITE_INV_UNTYPED_RETYPE as u64,
+        uapi::KERNITE_INV0_UNTYPED_RETYPE as u64,
         new_type,
         size_bits,
         dest_slot,
@@ -59,7 +59,7 @@ pub fn untyped_retype(untyped: CapRef, new_type: u64, size_bits: u64, dest_slot:
 pub fn untyped_reset(untyped: CapRef) -> i32 {
     invoke(
         untyped.addr(),
-        uapi::KERNITE_INV_UNTYPED_RESET as u64,
+        uapi::KERNITE_INV0_UNTYPED_RESET as u64,
         0,
         0,
         0,
@@ -93,7 +93,7 @@ pub fn untyped_retype_depth(
 pub fn tcb_configure(tcb: CapRef, rip: u64, rsp: u64, ipc_buf: u64) -> i32 {
     invoke(
         tcb.addr(),
-        uapi::KERNITE_INV_TCB_CONFIGURE as u64,
+        uapi::KERNITE_INV0_TCB_CONFIGURE as u64,
         rip,
         rsp,
         ipc_buf,
@@ -104,26 +104,26 @@ pub fn tcb_configure(tcb: CapRef, rip: u64, rsp: u64, ipc_buf: u64) -> i32 {
 
 /// Mark a TCB schedulable. Replaces the legacy `tcb_resume`.
 pub fn tcb_start(tcb: CapRef) -> i32 {
-    invoke(tcb.addr(), uapi::KERNITE_INV_TCB_START as u64, 0, 0, 0, 0).error as i32
+    invoke(tcb.addr(), uapi::KERNITE_INV0_TCB_START as u64, 0, 0, 0, 0).error as i32
 }
 
 /// Park a TCB at the next safe point and remove it from the
 /// scheduler ready queue. Replaces the legacy `tcb_suspend`.
 pub fn tcb_stop(tcb: CapRef) -> i32 {
-    invoke(tcb.addr(), uapi::KERNITE_INV_TCB_STOP as u64, 0, 0, 0, 0).error as i32
+    invoke(tcb.addr(), uapi::KERNITE_INV0_TCB_STOP as u64, 0, 0, 0, 0).error as i32
 }
 
 /// Drive a TCB into terminal `Dying` state. Replaces the legacy
 /// fault-handler-driven exit path.
 pub fn tcb_kill(tcb: CapRef) -> i32 {
-    invoke(tcb.addr(), uapi::KERNITE_INV_TCB_KILL as u64, 0, 0, 0, 0).error as i32
+    invoke(tcb.addr(), uapi::KERNITE_INV0_TCB_KILL as u64, 0, 0, 0, 0).error as i32
 }
 
 /// Set a TCB's CSpace and VSpace root capabilities.
 pub fn tcb_set_space(tcb: CapRef, cspace: CapRef, vspace: CapRef) -> i32 {
     invoke(
         tcb.addr(),
-        uapi::KERNITE_INV_TCB_SET_SPACE as u64,
+        uapi::KERNITE_INV0_TCB_SET_SPACE as u64,
         cspace.addr(),
         vspace.addr(),
         0,
@@ -136,7 +136,7 @@ pub fn tcb_set_space(tcb: CapRef, cspace: CapRef, vspace: CapRef) -> i32 {
 pub fn tcb_set_space_with_depth(tcb: CapRef, cspace: CapRef, vspace: CapRef, depth: u64) -> i32 {
     invoke(
         tcb.addr(),
-        uapi::KERNITE_INV_TCB_SET_SPACE as u64,
+        uapi::KERNITE_INV0_TCB_SET_SPACE as u64,
         cspace.addr(),
         vspace.addr(),
         depth,
@@ -151,7 +151,7 @@ pub fn tcb_set_space_with_depth(tcb: CapRef, cspace: CapRef, vspace: CapRef, dep
 pub fn tcb_set_fault_pipe(tcb: CapRef, fault_mp: CapRef) -> i32 {
     invoke(
         tcb.addr(),
-        uapi::KERNITE_INV_TCB_SET_FAULT_PIPE as u64,
+        uapi::KERNITE_INV0_TCB_SET_FAULT_PIPE as u64,
         fault_mp.addr(),
         0,
         0,
@@ -164,7 +164,7 @@ pub fn tcb_set_fault_pipe(tcb: CapRef, fault_mp: CapRef) -> i32 {
 pub fn tcb_set_ipc_buffer(tcb: CapRef, addr: u64) -> i32 {
     invoke(
         tcb.addr(),
-        uapi::KERNITE_INV_TCB_SET_IPC_BUFFER as u64,
+        uapi::KERNITE_INV0_TCB_SET_IPC_BUFFER as u64,
         addr,
         0,
         0,
@@ -177,7 +177,7 @@ pub fn tcb_set_ipc_buffer(tcb: CapRef, addr: u64) -> i32 {
 pub fn tcb_write_registers(tcb: CapRef, flags: u64, rip: u64, rsp: u64) -> i32 {
     invoke(
         tcb.addr(),
-        uapi::KERNITE_INV_TCB_WRITE_REGISTERS as u64,
+        uapi::KERNITE_INV0_TCB_WRITE_REGISTERS as u64,
         flags,
         rip,
         rsp,
@@ -190,7 +190,7 @@ pub fn tcb_write_registers(tcb: CapRef, flags: u64, rip: u64, rsp: u64) -> i32 {
 pub fn tcb_set_priority(tcb: CapRef, priority: u64) -> i32 {
     invoke(
         tcb.addr(),
-        uapi::KERNITE_INV_TCB_SET_PRIORITY as u64,
+        uapi::KERNITE_INV0_TCB_SET_PRIORITY as u64,
         priority,
         0,
         0,
@@ -204,7 +204,7 @@ pub fn tcb_set_priority(tcb: CapRef, priority: u64) -> i32 {
 pub fn tcb_copy_fpu(dest_tcb: CapRef, src_tcb: CapRef) -> i32 {
     invoke(
         dest_tcb.addr(),
-        uapi::KERNITE_INV_TCB_COPY_FPU as u64,
+        uapi::KERNITE_INV0_TCB_COPY_FPU as u64,
         src_tcb.addr(),
         0,
         0,
@@ -218,7 +218,7 @@ pub fn tcb_copy_fpu(dest_tcb: CapRef, src_tcb: CapRef) -> i32 {
 pub fn tcb_set_tls_base(tcb: CapRef, tls_base: u64) -> i32 {
     invoke(
         tcb.addr(),
-        uapi::KERNITE_INV_TCB_SET_TLS_BASE as u64,
+        uapi::KERNITE_INV0_TCB_SET_TLS_BASE as u64,
         tls_base,
         0,
         0,
@@ -231,7 +231,7 @@ pub fn tcb_set_tls_base(tcb: CapRef, tls_base: u64) -> i32 {
 pub fn tcb_set_abi_tp(tcb: CapRef, abi_tp: u64) -> i32 {
     invoke(
         tcb.addr(),
-        uapi::KERNITE_INV_TCB_SET_ABI_TP as u64,
+        uapi::KERNITE_INV0_TCB_SET_ABI_TP as u64,
         abi_tp,
         0,
         0,
@@ -247,7 +247,7 @@ pub fn tcb_set_abi_tp(tcb: CapRef, abi_tp: u64) -> i32 {
 pub fn tcb_set_stack_bounds(tcb: CapRef, stack_top: u64, stack_min: u64, guard_bottom: u64) -> i32 {
     invoke(
         tcb.addr(),
-        uapi::KERNITE_INV_TCB_SET_STACK_BOUNDS as u64,
+        uapi::KERNITE_INV0_TCB_SET_STACK_BOUNDS as u64,
         stack_top,
         stack_min,
         guard_bottom,
@@ -260,7 +260,7 @@ pub fn tcb_set_stack_bounds(tcb: CapRef, stack_top: u64, stack_min: u64, guard_b
 pub fn tcb_set_sched_class(tcb: CapRef, sched_class: u64) -> i32 {
     invoke(
         tcb.addr(),
-        uapi::KERNITE_INV_TCB_SET_SCHED_CLASS as u64,
+        uapi::KERNITE_INV0_TCB_SET_SCHED_CLASS as u64,
         sched_class,
         0,
         0,
@@ -279,7 +279,7 @@ pub fn tcb_set_sched_class(tcb: CapRef, sched_class: u64) -> i32 {
 pub unsafe fn tcb_get_space_info_ctx(ctx: *mut IpcContext, tcb: CapRef) -> Option<u8> {
     let r = invoke(
         tcb.addr(),
-        uapi::KERNITE_INV_TCB_GET_SPACE_INFO as u64,
+        uapi::KERNITE_INV0_TCB_GET_SPACE_INFO as u64,
         0,
         0,
         0,
@@ -310,7 +310,7 @@ pub unsafe fn tcb_get_space_info_ctx(ctx: *mut IpcContext, tcb: CapRef) -> Optio
 pub unsafe fn tcb_get_cpu_times_ctx(ctx: *mut IpcContext, tcb: CapRef) -> Option<(u64, u64)> {
     let r = invoke(
         tcb.addr(),
-        uapi::KERNITE_INV_TCB_GET_CPU_TIMES as u64,
+        uapi::KERNITE_INV0_TCB_GET_CPU_TIMES as u64,
         0,
         0,
         0,
@@ -335,7 +335,7 @@ pub unsafe fn tcb_get_cpu_times_ctx(ctx: *mut IpcContext, tcb: CapRef) -> Option
 pub fn tcb_get_trace_id(tcb: CapRef) -> Option<u64> {
     let r = invoke(
         tcb.addr(),
-        uapi::KERNITE_INV_TCB_GET_TRACE_ID as u64,
+        uapi::KERNITE_INV0_TCB_GET_TRACE_ID as u64,
         0,
         0,
         0,
@@ -353,7 +353,7 @@ pub fn tcb_get_trace_id(tcb: CapRef) -> Option<u64> {
 pub fn sc_configure(sc: CapRef, budget_ns: u64, period_ns: u64) -> i32 {
     invoke(
         sc.addr(),
-        uapi::KERNITE_INV_SC_CONFIGURE as u64,
+        uapi::KERNITE_INV0_SC_CONFIGURE as u64,
         budget_ns,
         period_ns,
         0,
@@ -366,7 +366,7 @@ pub fn sc_configure(sc: CapRef, budget_ns: u64, period_ns: u64) -> i32 {
 pub fn sc_bind(sc: CapRef, tcb: CapRef) -> i32 {
     invoke(
         sc.addr(),
-        uapi::KERNITE_INV_SC_BIND as u64,
+        uapi::KERNITE_INV0_SC_BIND as u64,
         tcb.addr(),
         0,
         0,
@@ -384,7 +384,7 @@ pub fn sc_bind(sc: CapRef, tcb: CapRef) -> i32 {
 pub fn vspace_map(vspace: CapRef, frame: CapRef, vaddr: u64, flags: u64) -> i32 {
     invoke(
         vspace.addr(),
-        uapi::KERNITE_INV_VSPACE_MAP as u64,
+        uapi::KERNITE_INV0_VSPACE_MAP as u64,
         frame.addr(),
         vaddr,
         flags,
@@ -403,7 +403,7 @@ pub fn vspace_map(vspace: CapRef, frame: CapRef, vaddr: u64, flags: u64) -> i32 
 pub fn vspace_get_mem_stats_raw(vspace: CapRef, out_uaddr: u64) -> u64 {
     invoke(
         vspace.addr(),
-        uapi::KERNITE_INV_VSPACE_GET_MEM_STATS as u64,
+        uapi::KERNITE_INV0_VSPACE_GET_MEM_STATS as u64,
         out_uaddr,
         0,
         0,
@@ -422,7 +422,7 @@ pub fn vspace_get_range_stats_raw(
 ) -> u64 {
     invoke(
         vspace.addr(),
-        uapi::KERNITE_INV_VSPACE_GET_RANGE_STATS as u64,
+        uapi::KERNITE_INV0_VSPACE_GET_RANGE_STATS as u64,
         start_vaddr,
         page_count,
         out_uaddr,
@@ -435,7 +435,7 @@ pub fn vspace_get_range_stats_raw(
 pub fn vspace_get_trace_id(vspace: CapRef) -> Option<u64> {
     let r = invoke(
         vspace.addr(),
-        uapi::KERNITE_INV_VSPACE_GET_TRACE_ID as u64,
+        uapi::KERNITE_INV0_VSPACE_GET_TRACE_ID as u64,
         0,
         0,
         0,
@@ -448,7 +448,7 @@ pub fn vspace_get_trace_id(vspace: CapRef) -> Option<u64> {
 pub fn vspace_unmap(vspace: CapRef, vaddr: u64) -> i32 {
     invoke(
         vspace.addr(),
-        uapi::KERNITE_INV_VSPACE_UNMAP as u64,
+        uapi::KERNITE_INV0_VSPACE_UNMAP as u64,
         vaddr,
         0,
         0,
@@ -462,7 +462,7 @@ pub fn vspace_unmap(vspace: CapRef, vaddr: u64) -> i32 {
 pub fn vspace_protect(vspace: CapRef, vaddr: u64, flags: u64) -> i32 {
     invoke(
         vspace.addr(),
-        uapi::KERNITE_INV_VSPACE_PROTECT as u64,
+        uapi::KERNITE_INV0_VSPACE_PROTECT as u64,
         vaddr,
         flags,
         0,
@@ -475,7 +475,7 @@ pub fn vspace_protect(vspace: CapRef, vaddr: u64, flags: u64) -> i32 {
 pub fn vspace_protect_range(vspace: CapRef, vaddr: u64, count: u64, flags: u64) -> (i32, u64) {
     let r = invoke(
         vspace.addr(),
-        uapi::KERNITE_INV_VSPACE_PROTECT_RANGE as u64,
+        uapi::KERNITE_INV0_VSPACE_PROTECT_RANGE as u64,
         vaddr,
         count,
         flags,
@@ -489,7 +489,7 @@ pub fn vspace_protect_range(vspace: CapRef, vaddr: u64, count: u64, flags: u64) 
 pub fn vspace_map_pt(vspace: CapRef, page_table: CapRef, vaddr: u64, level: u64) -> i32 {
     invoke(
         vspace.addr(),
-        uapi::KERNITE_INV_VSPACE_MAP_PT as u64,
+        uapi::KERNITE_INV0_VSPACE_MAP_PT as u64,
         page_table.addr(),
         vaddr,
         level,
@@ -503,7 +503,7 @@ pub fn vspace_map_pt(vspace: CapRef, page_table: CapRef, vaddr: u64, level: u64)
 pub fn vspace_walk(vspace: CapRef, start_vaddr: u64, max_entries: u64) -> i32 {
     invoke(
         vspace.addr(),
-        uapi::KERNITE_INV_VSPACE_WALK as u64,
+        uapi::KERNITE_INV0_VSPACE_WALK as u64,
         start_vaddr,
         max_entries,
         0,
@@ -518,7 +518,7 @@ pub fn vspace_walk(vspace: CapRef, start_vaddr: u64, max_entries: u64) -> i32 {
 pub fn vspace_resolve_page(vspace: CapRef, vaddr: u64) -> (i32, u64) {
     let r = invoke(
         vspace.addr(),
-        uapi::KERNITE_INV_VSPACE_RESOLVE_PAGE as u64,
+        uapi::KERNITE_INV0_VSPACE_RESOLVE_PAGE as u64,
         vaddr,
         0,
         0,
@@ -594,7 +594,7 @@ unsafe fn walk_ipc_words_ctx(ctx: *mut IpcContext) -> Option<*const u64> {
 pub fn vspace_copy_page(src_vspace: CapRef, src_vaddr: u64, dst_frame: CapRef) -> i32 {
     invoke(
         src_vspace.addr(),
-        uapi::KERNITE_INV_VSPACE_COPY_PAGE as u64,
+        uapi::KERNITE_INV0_VSPACE_COPY_PAGE as u64,
         src_vaddr,
         dst_frame.addr(),
         0,
@@ -614,7 +614,7 @@ pub fn vspace_map_device(
 ) -> i32 {
     invoke(
         vspace.addr(),
-        uapi::KERNITE_INV_VSPACE_MAP_DEVICE as u64,
+        uapi::KERNITE_INV0_VSPACE_MAP_DEVICE as u64,
         device_untyped.addr(),
         page_offset,
         vaddr,
@@ -636,7 +636,7 @@ pub fn vspace_map_device_range(
     let count_and_flags = (num_pages << 32) | (flags & 0xFFFF_FFFF);
     let r = invoke(
         vspace.addr(),
-        uapi::KERNITE_INV_VSPACE_MAP_DEVICE_RANGE as u64,
+        uapi::KERNITE_INV0_VSPACE_MAP_DEVICE_RANGE as u64,
         device_untyped.addr(),
         offset_start,
         vaddr_start,
@@ -656,7 +656,7 @@ pub fn vspace_share_ro_page(
 ) -> i32 {
     invoke(
         src_vspace.addr(),
-        uapi::KERNITE_INV_VSPACE_SHARE_RO_PAGE as u64,
+        uapi::KERNITE_INV0_VSPACE_SHARE_RO_PAGE as u64,
         src_vaddr,
         dst_vspace.addr(),
         dst_vaddr,
@@ -669,7 +669,7 @@ pub fn vspace_share_ro_page(
 pub fn vspace_map_demand(vspace: CapRef, vaddr: u64, flags: u64) -> i32 {
     invoke(
         vspace.addr(),
-        uapi::KERNITE_INV_VSPACE_MAP_DEMAND as u64,
+        uapi::KERNITE_INV0_VSPACE_MAP_DEMAND as u64,
         vaddr,
         flags,
         0,
@@ -688,7 +688,7 @@ pub fn vspace_set_cow_pool(
 ) -> i32 {
     invoke(
         vspace.addr(),
-        uapi::KERNITE_INV_VSPACE_SET_COW_POOL as u64,
+        uapi::KERNITE_INV0_VSPACE_SET_COW_POOL as u64,
         pool_frame.addr(),
         src_cnode.addr(),
         count,
@@ -706,7 +706,7 @@ pub fn vspace_replenish_cow_pool(
 ) -> i32 {
     invoke(
         vspace.addr(),
-        uapi::KERNITE_INV_VSPACE_REPLENISH_COW_POOL as u64,
+        uapi::KERNITE_INV0_VSPACE_REPLENISH_COW_POOL as u64,
         src_cnode.addr(),
         start_slot,
         count,
@@ -725,7 +725,7 @@ pub fn vspace_map_demand_range(
 ) -> (i32, u64) {
     let r = invoke(
         vspace.addr(),
-        uapi::KERNITE_INV_VSPACE_MAP_DEMAND_RANGE as u64,
+        uapi::KERNITE_INV0_VSPACE_MAP_DEMAND_RANGE as u64,
         vaddr_start,
         count,
         flags,
@@ -754,7 +754,7 @@ pub fn vspace_fork_range(
         ((parent_shadow_mo.addr() & 0xFFFF_FFFF) << 32) | (child_mo.addr() & 0xFFFF_FFFF);
     let r = invoke(
         parent_vspace.addr(),
-        uapi::KERNITE_INV_VSPACE_FORK_RANGE as u64,
+        uapi::KERNITE_INV0_VSPACE_FORK_RANGE as u64,
         child_vs_s_packed,
         packed_mo_caps,
         va_start,
@@ -776,7 +776,7 @@ pub fn vspace_undo_fork_range(
         ((parent_shadow_mo.addr() & 0xFFFF_FFFF) << 32) | (child_mo.addr() & 0xFFFF_FFFF);
     invoke(
         parent_vspace.addr(),
-        uapi::KERNITE_INV_VSPACE_UNDO_FORK_RANGE as u64,
+        uapi::KERNITE_INV0_VSPACE_UNDO_FORK_RANGE as u64,
         child_vspace.addr(),
         packed_mo_caps,
         va_start,
@@ -799,7 +799,7 @@ pub fn vspace_undo_fork_range(
 pub fn cnode_set_guard(cnode: CapRef, guard: u64, guard_bits: u64) -> i32 {
     invoke(
         cnode.addr(),
-        uapi::KERNITE_INV_CNODE_SET_GUARD as u64,
+        uapi::KERNITE_INV0_CNODE_SET_GUARD as u64,
         guard,
         guard_bits,
         0,
@@ -812,7 +812,7 @@ pub fn cnode_set_guard(cnode: CapRef, guard: u64, guard_bits: u64) -> i32 {
 pub fn cnode_get_info(cnode: CapRef) -> crate::core_types::TronaResult {
     invoke(
         cnode.addr(),
-        uapi::KERNITE_INV_CNODE_GET_INFO as u64,
+        uapi::KERNITE_INV0_CNODE_GET_INFO as u64,
         0,
         0,
         0,
@@ -833,7 +833,7 @@ pub fn cnode_get_info(cnode: CapRef) -> crate::core_types::TronaResult {
 pub fn irq_bind_eq(irq_handler: CapRef, eq: CapRef, cookie: u64) -> i32 {
     invoke(
         irq_handler.addr(),
-        uapi::KERNITE_INV_IRQ_BIND_EQ as u64,
+        uapi::KERNITE_INV0_IRQ_BIND_EQ as u64,
         eq.addr(),
         cookie,
         0,
@@ -846,7 +846,7 @@ pub fn irq_bind_eq(irq_handler: CapRef, eq: CapRef, cookie: u64) -> i32 {
 pub fn irq_unbind_eq(irq_handler: CapRef) -> i32 {
     invoke(
         irq_handler.addr(),
-        uapi::KERNITE_INV_IRQ_UNBIND_EQ as u64,
+        uapi::KERNITE_INV0_IRQ_UNBIND_EQ as u64,
         0,
         0,
         0,
@@ -859,7 +859,7 @@ pub fn irq_unbind_eq(irq_handler: CapRef) -> i32 {
 pub fn irq_ack(irq_handler: CapRef) -> i32 {
     invoke(
         irq_handler.addr(),
-        uapi::KERNITE_INV_IRQ_ACK as u64,
+        uapi::KERNITE_INV0_IRQ_ACK as u64,
         0,
         0,
         0,
@@ -878,7 +878,7 @@ pub fn irq_handler_ack(irq_handler: CapRef) -> i32 {
 pub fn ioport_read_8(ioport: CapRef, port: u64) -> Result<u8, i32> {
     let r = invoke(
         ioport.addr(),
-        uapi::KERNITE_INV_IOPORT_READ_8 as u64,
+        uapi::KERNITE_INV0_IOPORT_READ_8 as u64,
         port,
         0,
         0,
@@ -900,7 +900,7 @@ pub fn ioport_in8(ioport: CapRef, port: u64) -> Result<u8, i32> {
 pub fn ioport_write_8(ioport: CapRef, port: u64, value: u8) -> Result<(), i32> {
     let r = invoke(
         ioport.addr(),
-        uapi::KERNITE_INV_IOPORT_WRITE_8 as u64,
+        uapi::KERNITE_INV0_IOPORT_WRITE_8 as u64,
         port,
         value as u64,
         0,
@@ -922,7 +922,7 @@ pub fn ioport_out8(ioport: CapRef, port: u64, value: u8) -> Result<(), i32> {
 pub fn ioport_read_16(ioport: CapRef, port: u64) -> Result<u16, i32> {
     let r = invoke(
         ioport.addr(),
-        uapi::KERNITE_INV_IOPORT_READ_16 as u64,
+        uapi::KERNITE_INV0_IOPORT_READ_16 as u64,
         port,
         0,
         0,
@@ -944,7 +944,7 @@ pub fn ioport_in16(ioport: CapRef, port: u64) -> Result<u16, i32> {
 pub fn ioport_write_16(ioport: CapRef, port: u64, value: u16) -> Result<(), i32> {
     let r = invoke(
         ioport.addr(),
-        uapi::KERNITE_INV_IOPORT_WRITE_16 as u64,
+        uapi::KERNITE_INV0_IOPORT_WRITE_16 as u64,
         port,
         value as u64,
         0,
@@ -966,7 +966,7 @@ pub fn ioport_out16(ioport: CapRef, port: u64, value: u16) -> Result<(), i32> {
 pub fn ioport_read_32(ioport: CapRef, port: u64) -> Result<u32, i32> {
     let r = invoke(
         ioport.addr(),
-        uapi::KERNITE_INV_IOPORT_READ_32 as u64,
+        uapi::KERNITE_INV0_IOPORT_READ_32 as u64,
         port,
         0,
         0,
@@ -988,7 +988,7 @@ pub fn ioport_in32(ioport: CapRef, port: u64) -> Result<u32, i32> {
 pub fn ioport_write_32(ioport: CapRef, port: u64, value: u32) -> Result<(), i32> {
     let r = invoke(
         ioport.addr(),
-        uapi::KERNITE_INV_IOPORT_WRITE_32 as u64,
+        uapi::KERNITE_INV0_IOPORT_WRITE_32 as u64,
         port,
         value as u64,
         0,
@@ -1015,7 +1015,7 @@ pub fn ioport_out32(ioport: CapRef, port: u64, value: u32) -> Result<(), i32> {
 pub fn mo_commit(mo: CapRef, offset: u64, count: u64, ut_cap: u64) -> i32 {
     invoke(
         mo.addr(),
-        uapi::KERNITE_INV_MO_COMMIT as u64,
+        uapi::KERNITE_INV0_MO_COMMIT as u64,
         offset,
         count,
         ut_cap,
@@ -1028,7 +1028,7 @@ pub fn mo_commit(mo: CapRef, offset: u64, count: u64, ut_cap: u64) -> i32 {
 pub fn mo_decommit(mo: CapRef, offset: u64, count: u64) -> i32 {
     invoke(
         mo.addr(),
-        uapi::KERNITE_INV_MO_DECOMMIT as u64,
+        uapi::KERNITE_INV0_MO_DECOMMIT as u64,
         offset,
         count,
         0,
@@ -1039,7 +1039,7 @@ pub fn mo_decommit(mo: CapRef, offset: u64, count: u64) -> i32 {
 
 /// Get the page count of a MemoryObject.
 pub fn mo_get_size(mo: CapRef) -> (i32, u64) {
-    let r = invoke(mo.addr(), uapi::KERNITE_INV_MO_GET_SIZE as u64, 0, 0, 0, 0);
+    let r = invoke(mo.addr(), uapi::KERNITE_INV0_MO_GET_SIZE as u64, 0, 0, 0, 0);
     (r.error as i32, r.value)
 }
 
@@ -1050,7 +1050,7 @@ pub fn mo_clone(mo: CapRef, child_mo: CapRef, flags: u64, state: CapRef) -> i32 
     // parent is already bound.
     invoke(
         mo.addr(),
-        uapi::KERNITE_INV_MO_CLONE as u64,
+        uapi::KERNITE_INV0_MO_CLONE as u64,
         child_mo.addr(),
         flags,
         state.addr(),
@@ -1075,7 +1075,7 @@ pub fn mo_clone_range(
 ) -> i32 {
     invoke(
         mo.addr(),
-        uapi::KERNITE_INV_MO_CLONE_RANGE as u64,
+        uapi::KERNITE_INV0_MO_CLONE_RANGE as u64,
         child_mo.addr(),
         offset_pages,
         child_page_count,
@@ -1109,7 +1109,7 @@ pub fn mo_mark_executable_ref(
     write_invoke_depth(src_mo.depth(), dest_slot.depth());
     invoke(
         exec_authority.addr(),
-        uapi::KERNITE_INV_MO_MARK_EXECUTABLE as u64,
+        uapi::KERNITE_INV0_MO_MARK_EXECUTABLE as u64,
         src_mo.addr(),
         dest_cnode.addr(),
         dest_slot.addr(),
@@ -1133,7 +1133,7 @@ pub fn mo_populate_borrowed(
 ) -> i32 {
     invoke(
         mo.addr(),
-        uapi::KERNITE_INV_MO_POPULATE_BORROWED as u64,
+        uapi::KERNITE_INV0_MO_POPULATE_BORROWED as u64,
         device_ut.addr(),
         device_offset,
         page_count,
@@ -1147,7 +1147,7 @@ pub fn mo_populate_borrowed(
 pub fn mo_resize(mo: CapRef, new_page_count: u64) -> i32 {
     invoke(
         mo.addr(),
-        uapi::KERNITE_INV_MO_RESIZE as u64,
+        uapi::KERNITE_INV0_MO_RESIZE as u64,
         new_page_count,
         0,
         0,
@@ -1161,7 +1161,7 @@ pub fn mo_resize(mo: CapRef, new_page_count: u64) -> i32 {
 pub fn mo_read(mo: CapRef, offset: u64, count: u64) -> (i32, u64) {
     let r = invoke(
         mo.addr(),
-        uapi::KERNITE_INV_MO_READ as u64,
+        uapi::KERNITE_INV0_MO_READ as u64,
         offset,
         count,
         0,
@@ -1175,7 +1175,7 @@ pub fn mo_read(mo: CapRef, offset: u64, count: u64) -> (i32, u64) {
 pub fn mo_write(mo: CapRef, offset: u64, count: u64) -> (i32, u64) {
     let r = invoke(
         mo.addr(),
-        uapi::KERNITE_INV_MO_WRITE as u64,
+        uapi::KERNITE_INV0_MO_WRITE as u64,
         offset,
         count,
         0,
@@ -1189,7 +1189,7 @@ pub fn mo_write(mo: CapRef, offset: u64, count: u64) -> (i32, u64) {
 pub fn mo_has_page(mo: CapRef, page_index: u64) -> (i32, bool) {
     let r = invoke(
         mo.addr(),
-        uapi::KERNITE_INV_MO_HAS_PAGE as u64,
+        uapi::KERNITE_INV0_MO_HAS_PAGE as u64,
         page_index,
         0,
         0,
@@ -1203,7 +1203,7 @@ pub fn mo_has_page(mo: CapRef, page_index: u64) -> (i32, bool) {
 pub fn mo_get_map_count(mo: CapRef) -> (i32, u64) {
     let r = invoke(
         mo.addr(),
-        uapi::KERNITE_INV_MO_GET_MAP_COUNT as u64,
+        uapi::KERNITE_INV0_MO_GET_MAP_COUNT as u64,
         0,
         0,
         0,
@@ -1222,7 +1222,7 @@ pub fn mo_update_page_flags(
 ) -> (i32, u64) {
     let r = invoke(
         mo.addr(),
-        uapi::KERNITE_INV_MO_UPDATE_PAGE_FLAGS as u64,
+        uapi::KERNITE_INV0_MO_UPDATE_PAGE_FLAGS as u64,
         page_index,
         set_flags,
         clear_flags,
@@ -1242,7 +1242,7 @@ pub fn vspace_map_mo_with_count(
 ) -> (i32, u64) {
     let r = invoke(
         vspace.addr(),
-        uapi::KERNITE_INV_VSPACE_MAP_MO as u64,
+        uapi::KERNITE_INV0_VSPACE_MAP_MO as u64,
         mo_cap,
         vaddr,
         mo_offset,
@@ -1305,7 +1305,7 @@ pub fn device_control_create_ioport_depth(
     write_invoke_depth(dest_depth, 0);
     invoke(
         device_control.addr(),
-        uapi::KERNITE_INV_DEVICE_CONTROL_CREATE_IOPORT as u64,
+        uapi::KERNITE_INV0_DEVICE_CONTROL_CREATE_IOPORT as u64,
         base_port,
         num_ports,
         dest_cspace.addr(),
@@ -1342,7 +1342,7 @@ pub fn device_control_create_device_untyped_depth(
     write_invoke_depth(dest_depth, 0);
     invoke(
         device_control.addr(),
-        uapi::KERNITE_INV_DEVICE_CONTROL_CREATE_DEVICE_UNTYPED as u64,
+        uapi::KERNITE_INV0_DEVICE_CONTROL_CREATE_DEVICE_UNTYPED as u64,
         phys_addr,
         size_bits,
         dest_cspace.addr(),
@@ -1379,7 +1379,7 @@ pub fn device_control_create_irq_handler_depth(
     write_invoke_depth(dest_depth, 0);
     invoke(
         device_control.addr(),
-        uapi::KERNITE_INV_DEVICE_CONTROL_CREATE_IRQ_HANDLER as u64,
+        uapi::KERNITE_INV0_DEVICE_CONTROL_CREATE_IRQ_HANDLER as u64,
         irq,
         dest_cspace.addr(),
         dest_slot,
@@ -1407,7 +1407,7 @@ pub fn device_control_create_irq_handler(
 fn write_invoke_depth(d0: u8, d1: u8) {
     let _ = invoke(
         uapi::KERNITE_CAP_SELF_TCB as u64,
-        uapi::KERNITE_INV_TCB_SET_INVOKE_DEPTHS as u64,
+        uapi::KERNITE_INV0_TCB_SET_INVOKE_DEPTHS as u64,
         d0 as u64,
         d1 as u64,
         0,
@@ -1427,7 +1427,7 @@ pub fn cnode_copy_depth(
     write_invoke_depth(src_depth, dest_depth);
     invoke(
         src_cnode.addr(),
-        uapi::KERNITE_INV_CNODE_COPY as u64,
+        uapi::KERNITE_INV0_CNODE_COPY as u64,
         src_slot,
         dest_cnode.addr(),
         dest_slot,
@@ -1498,7 +1498,7 @@ pub fn cnode_mint_depth(
     write_invoke_depth(src_depth, dest_depth);
     invoke(
         src_cnode.addr(),
-        uapi::KERNITE_INV_CNODE_MINT as u64,
+        uapi::KERNITE_INV0_CNODE_MINT as u64,
         src_slot,
         dest_cnode.addr(),
         dest_slot,
@@ -1546,7 +1546,7 @@ pub fn cnode_move_depth(
     write_invoke_depth(dest_depth, src_depth);
     invoke(
         dest_cnode.addr(),
-        uapi::KERNITE_INV_CNODE_MOVE as u64,
+        uapi::KERNITE_INV0_CNODE_MOVE as u64,
         dest_slot,
         src_cnode.addr(),
         src_slot,
@@ -1596,7 +1596,7 @@ pub fn cnode_mutate_depth(
     write_invoke_depth(dest_depth, src_depth);
     invoke(
         dest_cnode.addr(),
-        uapi::KERNITE_INV_CNODE_MUTATE as u64,
+        uapi::KERNITE_INV0_CNODE_MUTATE as u64,
         dest_slot,
         src_cnode.addr(),
         src_slot,
@@ -1629,7 +1629,7 @@ pub fn cnode_delete_depth(cnode: CapRef, slot: u64, depth: u8) -> i32 {
     write_invoke_depth(depth, 0);
     invoke(
         cnode.addr(),
-        uapi::KERNITE_INV_CNODE_DELETE as u64,
+        uapi::KERNITE_INV0_CNODE_DELETE as u64,
         slot,
         0,
         0,
@@ -1646,7 +1646,7 @@ pub fn cnode_revoke_depth(cnode: CapRef, slot: u64, depth: u8) -> i32 {
     write_invoke_depth(depth, 0);
     invoke(
         cnode.addr(),
-        uapi::KERNITE_INV_CNODE_REVOKE as u64,
+        uapi::KERNITE_INV0_CNODE_REVOKE as u64,
         slot,
         0,
         0,
@@ -1666,7 +1666,7 @@ pub fn cnode_revoke(cnode: CapRef, slot: u64) -> i32 {
 pub fn eq_wait(eq: CapRef, deadline: u64) -> i32 {
     invoke(
         eq.addr(),
-        uapi::KERNITE_INV_EQ_WAIT as u64,
+        uapi::KERNITE_INV0_EQ_WAIT as u64,
         deadline,
         0,
         0,
@@ -1678,7 +1678,7 @@ pub fn eq_wait(eq: CapRef, deadline: u64) -> i32 {
 pub fn watch_register(watch: CapRef, watched: CapRef, eq: CapRef, mask: u64, cookie: u64) -> i32 {
     invoke(
         watch.addr(),
-        uapi::KERNITE_INV_WATCH_REGISTER as u64,
+        uapi::KERNITE_INV0_WATCH_REGISTER as u64,
         watched.addr(),
         eq.addr(),
         mask,
@@ -1690,7 +1690,7 @@ pub fn watch_register(watch: CapRef, watched: CapRef, eq: CapRef, mask: u64, coo
 pub fn mp_core_pair(core: CapRef, send: CapRef, recv: CapRef) -> i32 {
     invoke(
         core.addr(),
-        uapi::KERNITE_INV_MP_CORE_PAIR as u64,
+        uapi::KERNITE_INV0_MP_CORE_PAIR as u64,
         send.addr(),
         recv.addr(),
         0,
@@ -1702,7 +1702,7 @@ pub fn mp_core_pair(core: CapRef, send: CapRef, recv: CapRef) -> i32 {
 pub fn dp_core_pair(core: CapRef, producer: CapRef, consumer: CapRef, datagram: bool) -> i32 {
     invoke(
         core.addr(),
-        uapi::KERNITE_INV_DP_CORE_PAIR as u64,
+        uapi::KERNITE_INV0_DP_CORE_PAIR as u64,
         producer.addr(),
         consumer.addr(),
         datagram as u64,
@@ -1716,7 +1716,7 @@ pub fn dp_core_pair(core: CapRef, producer: CapRef, consumer: CapRef, datagram: 
 pub fn dp_set_rx_threshold(side: CapRef, threshold: u32) -> i32 {
     invoke(
         side.addr(),
-        uapi::KERNITE_INV_DP_SET_RX_THRESHOLD as u64,
+        uapi::KERNITE_INV0_DP_SET_RX_THRESHOLD as u64,
         threshold as u64,
         0,
         0,
@@ -1730,7 +1730,7 @@ pub fn dp_set_rx_threshold(side: CapRef, threshold: u32) -> i32 {
 pub fn dp_set_tx_threshold(side: CapRef, threshold: u32) -> i32 {
     invoke(
         side.addr(),
-        uapi::KERNITE_INV_DP_SET_TX_THRESHOLD as u64,
+        uapi::KERNITE_INV0_DP_SET_TX_THRESHOLD as u64,
         threshold as u64,
         0,
         0,
@@ -1744,7 +1744,7 @@ pub fn dp_set_tx_threshold(side: CapRef, threshold: u32) -> i32 {
 pub fn dp_shutdown(side: CapRef) -> i32 {
     invoke(
         side.addr(),
-        uapi::KERNITE_INV_DP_SHUTDOWN as u64,
+        uapi::KERNITE_INV0_DP_SHUTDOWN as u64,
         0,
         0,
         0,
@@ -1774,7 +1774,7 @@ pub fn dp_shutdown(side: CapRef) -> i32 {
 pub fn watch_cancel(watch: CapRef) -> i32 {
     invoke(
         watch.addr(),
-        uapi::KERNITE_INV_WATCH_CANCEL as u64,
+        uapi::KERNITE_INV0_WATCH_CANCEL as u64,
         0,
         0,
         0,
@@ -1790,7 +1790,7 @@ pub fn watch_cancel(watch: CapRef) -> i32 {
 pub fn timer_set(timer: CapRef, deadline_ns: u64, period_ns: u64, eq: CapRef, cookie: u64) -> i32 {
     invoke(
         timer.addr(),
-        uapi::KERNITE_INV_TIMER_SET as u64,
+        uapi::KERNITE_INV0_TIMER_SET as u64,
         deadline_ns,
         period_ns,
         eq.addr(),
@@ -1803,7 +1803,7 @@ pub fn timer_set(timer: CapRef, deadline_ns: u64, period_ns: u64, eq: CapRef, co
 pub fn timer_cancel(timer: CapRef) -> i32 {
     invoke(
         timer.addr(),
-        uapi::KERNITE_INV_TIMER_CANCEL as u64,
+        uapi::KERNITE_INV0_TIMER_CANCEL as u64,
         0,
         0,
         0,

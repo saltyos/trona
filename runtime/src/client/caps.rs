@@ -222,7 +222,7 @@ pub fn kernel_rng_cap() -> LeakedCapRef {
 }
 
 /// `Clock` cap (delivered via `ROLE_CLOCK`). Use with
-/// `KERNITE_INV_CLOCK_READ` and `KERNITE_CLOCK_ID_*` arg.
+/// `KERNITE_INV0_CLOCK_READ` and `KERNITE_CLOCK_ID_*` arg.
 #[inline]
 pub fn clock_cap() -> LeakedCapRef {
     LeakedCapRef::flat(read(&raw const crate::__trona_cap_clock))
