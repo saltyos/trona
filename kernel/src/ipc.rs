@@ -36,8 +36,8 @@
 //! [`set_receive_slot_ctx`] and read back the installed slots in
 //! their own `caps[]` after `MP_READ`.
 
-use crate::core_types::{Cap, IPC_BUFFER_RECV_SLOT_DEPTH_INDEX, IpcContext, TronaMsg};
-use crate::syscall::invoke;
+use crate::core_types::{Cap, CapRef, IPC_BUFFER_RECV_SLOT_DEPTH_INDEX, IpcContext, TronaMsg};
+use crate::syscall::invoke_words;
 
 const MP_MSG_REGS: usize = 32;
 const IPC_BUFFER_MSG_REGS_BASE: usize = 2;
@@ -318,13 +318,11 @@ unsafe fn mp_write_with_metadata_ctx(
         }
         let info = msginfo((*msg).label, (*msg).length, caps as u64);
         write_overflow_ctx(ctx, msg);
-        let r = invoke(
-            mp,
-            uapi::KERNITE_INV0_MP_WRITE as u64,
-            info,
-            (*msg).regs[0],
-            (*msg).regs[1],
-            (*msg).regs[2],
+        let r = invoke_words(
+            CapRef::flat(mp),
+            uapi::KERNITE_INV0_MP_WRITE,
+            uapi::KERNITE_INV_MP_WRITE,
+            [info, (*msg).regs[0], (*msg).regs[1], (*msg).regs[2]],
         );
         if caps > 0 && !ctx.is_null() {
             clear_send_caps_ctx(ctx);
@@ -369,7 +367,12 @@ pub unsafe fn mp_read_ctx(
     msg: *mut TronaMsg,
     badge: *mut u64,
 ) -> i32 {
-    let r = invoke(mp, uapi::KERNITE_INV0_MP_READ as u64, 0, 0, 0, 0);
+    let r = invoke_words(
+        CapRef::flat(mp),
+        uapi::KERNITE_INV0_MP_READ,
+        uapi::KERNITE_INV_MP_READ,
+        [0, 0, 0, 0],
+    );
     if r.error == 0 {
         unsafe {
             if !badge.is_null() && !ctx.is_null() && !(*ctx).ipc_buffer.is_null() {
@@ -412,7 +415,12 @@ pub unsafe fn mp_call_ctx(
         // The full request body travels in the IPC buffer so the
         // `deadline` can ride invoke register a3 (a4/a5 unused).
         write_call_request_ctx(ctx, msg);
-        let r = invoke(mp, uapi::KERNITE_INV0_MP_CALL as u64, info, deadline, 0, 0);
+        let r = invoke_words(
+            CapRef::flat(mp),
+            uapi::KERNITE_INV0_MP_CALL,
+            uapi::KERNITE_INV_MP_CALL,
+            [info, deadline, 0, 0],
+        );
         if caps > 0 && !ctx.is_null() {
             clear_send_caps_ctx(ctx);
         }

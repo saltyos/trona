@@ -8,7 +8,7 @@
 //! routes through `crate::syscall::invoke`.
 
 use crate::core_types::{CapRef, IpcContext};
-use crate::syscall::invoke;
+use crate::syscall::{self as S, invoke, invoke_words};
 
 /// Initial stack pointer for entering a Rust/C ABI function by
 /// directly programming a TCB's RIP/RSP, rather than arriving via a
@@ -43,6 +43,15 @@ pub const fn direct_entry_rsp(stack_top: u64) -> u64 {
 /// `new_type` with `size_bits` (0 = default), placing the resulting
 /// cap at `dest_slot`.
 pub fn untyped_retype(untyped: CapRef, new_type: u64, size_bits: u64, dest_slot: u64) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            untyped,
+            uapi::KERNITE_INV_UNTYPED_RETYPE,
+            &[new_type, size_bits],
+            &[S::root_operand(dest_slot, 0)],
+        ))
+        .error as i32;
+    }
     invoke(
         untyped.addr(),
         uapi::KERNITE_INV0_UNTYPED_RETYPE as u64,
@@ -57,13 +66,11 @@ pub fn untyped_retype(untyped: CapRef, new_type: u64, size_bits: u64, dest_slot:
 /// Reset an exhausted untyped once all typed children have been
 /// destroyed.
 pub fn untyped_reset(untyped: CapRef) -> i32 {
-    invoke(
-        untyped.addr(),
-        uapi::KERNITE_INV0_UNTYPED_RESET as u64,
-        0,
-        0,
-        0,
-        0,
+    invoke_words(
+        untyped,
+        uapi::KERNITE_INV0_UNTYPED_RESET,
+        uapi::KERNITE_INV_UNTYPED_RESET,
+        [0, 0, 0, 0],
     )
     .error as i32
 }
@@ -76,6 +83,15 @@ pub fn untyped_retype_depth(
     dest_slot: u64,
     dest_depth: u8,
 ) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            untyped,
+            uapi::KERNITE_INV_UNTYPED_RETYPE,
+            &[new_type, size_bits],
+            &[S::root_operand(dest_slot, dest_depth)],
+        ))
+        .error as i32;
+    }
     write_invoke_depth(dest_depth, 0);
     untyped_retype(untyped, new_type, size_bits, dest_slot)
 }
@@ -91,36 +107,61 @@ pub fn untyped_retype_depth(
 /// Configure a TCB's instruction pointer, stack pointer, and IPC
 /// buffer address.
 pub fn tcb_configure(tcb: CapRef, rip: u64, rsp: u64, ipc_buf: u64) -> i32 {
-    invoke(
-        tcb.addr(),
-        uapi::KERNITE_INV0_TCB_CONFIGURE as u64,
-        rip,
-        rsp,
-        ipc_buf,
-        0,
+    invoke_words(
+        tcb,
+        uapi::KERNITE_INV0_TCB_CONFIGURE,
+        uapi::KERNITE_INV_TCB_CONFIGURE,
+        [rip, rsp, ipc_buf, 0],
     )
     .error as i32
 }
 
 /// Mark a TCB schedulable. Replaces the legacy `tcb_resume`.
 pub fn tcb_start(tcb: CapRef) -> i32 {
-    invoke(tcb.addr(), uapi::KERNITE_INV0_TCB_START as u64, 0, 0, 0, 0).error as i32
+    invoke_words(
+        tcb,
+        uapi::KERNITE_INV0_TCB_START,
+        uapi::KERNITE_INV_TCB_START,
+        [0, 0, 0, 0],
+    )
+    .error as i32
 }
 
 /// Park a TCB at the next safe point and remove it from the
 /// scheduler ready queue. Replaces the legacy `tcb_suspend`.
 pub fn tcb_stop(tcb: CapRef) -> i32 {
-    invoke(tcb.addr(), uapi::KERNITE_INV0_TCB_STOP as u64, 0, 0, 0, 0).error as i32
+    invoke_words(
+        tcb,
+        uapi::KERNITE_INV0_TCB_STOP,
+        uapi::KERNITE_INV_TCB_STOP,
+        [0, 0, 0, 0],
+    )
+    .error as i32
 }
 
 /// Drive a TCB into terminal `Dying` state. Replaces the legacy
 /// fault-handler-driven exit path.
 pub fn tcb_kill(tcb: CapRef) -> i32 {
-    invoke(tcb.addr(), uapi::KERNITE_INV0_TCB_KILL as u64, 0, 0, 0, 0).error as i32
+    invoke_words(
+        tcb,
+        uapi::KERNITE_INV0_TCB_KILL,
+        uapi::KERNITE_INV_TCB_KILL,
+        [0, 0, 0, 0],
+    )
+    .error as i32
 }
 
 /// Set a TCB's CSpace and VSpace root capabilities.
 pub fn tcb_set_space(tcb: CapRef, cspace: CapRef, vspace: CapRef) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            tcb,
+            uapi::KERNITE_INV_TCB_SET_SPACE,
+            &[0],
+            &[S::operand(cspace), S::operand(vspace)],
+        ))
+        .error as i32;
+    }
     invoke(
         tcb.addr(),
         uapi::KERNITE_INV0_TCB_SET_SPACE as u64,
@@ -134,6 +175,15 @@ pub fn tcb_set_space(tcb: CapRef, cspace: CapRef, vspace: CapRef) -> i32 {
 
 /// Set a TCB's CSpace and VSpace with explicit CNode depth.
 pub fn tcb_set_space_with_depth(tcb: CapRef, cspace: CapRef, vspace: CapRef, depth: u64) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            tcb,
+            uapi::KERNITE_INV_TCB_SET_SPACE,
+            &[depth],
+            &[S::operand(cspace), S::operand(vspace)],
+        ))
+        .error as i32;
+    }
     invoke(
         tcb.addr(),
         uapi::KERNITE_INV0_TCB_SET_SPACE as u64,
@@ -149,6 +199,15 @@ pub fn tcb_set_space_with_depth(tcb: CapRef, cspace: CapRef, vspace: CapRef, dep
 /// instructions / breakpoints / OOM / cap faults are synthesised as
 /// MP records and written to this pipe. Pass `0` to clear.
 pub fn tcb_set_fault_pipe(tcb: CapRef, fault_mp: CapRef) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            tcb,
+            uapi::KERNITE_INV_TCB_SET_FAULT_PIPE,
+            &[],
+            &[S::optional_ref(fault_mp)],
+        ))
+        .error as i32;
+    }
     invoke(
         tcb.addr(),
         uapi::KERNITE_INV0_TCB_SET_FAULT_PIPE as u64,
@@ -162,39 +221,33 @@ pub fn tcb_set_fault_pipe(tcb: CapRef, fault_mp: CapRef) -> i32 {
 
 /// Set the IPC buffer virtual address for a TCB.
 pub fn tcb_set_ipc_buffer(tcb: CapRef, addr: u64) -> i32 {
-    invoke(
-        tcb.addr(),
-        uapi::KERNITE_INV0_TCB_SET_IPC_BUFFER as u64,
-        addr,
-        0,
-        0,
-        0,
+    invoke_words(
+        tcb,
+        uapi::KERNITE_INV0_TCB_SET_IPC_BUFFER,
+        uapi::KERNITE_INV_TCB_SET_IPC_BUFFER,
+        [addr, 0, 0, 0],
     )
     .error as i32
 }
 
 /// Write a TCB's instruction pointer and stack pointer.
 pub fn tcb_write_registers(tcb: CapRef, flags: u64, rip: u64, rsp: u64) -> i32 {
-    invoke(
-        tcb.addr(),
-        uapi::KERNITE_INV0_TCB_WRITE_REGISTERS as u64,
-        flags,
-        rip,
-        rsp,
-        0,
+    invoke_words(
+        tcb,
+        uapi::KERNITE_INV0_TCB_WRITE_REGISTERS,
+        uapi::KERNITE_INV_TCB_WRITE_REGISTERS,
+        [flags, rip, rsp, 0],
     )
     .error as i32
 }
 
 /// Set a class-local scheduling priority for a TCB.
 pub fn tcb_set_priority(tcb: CapRef, priority: u64) -> i32 {
-    invoke(
-        tcb.addr(),
-        uapi::KERNITE_INV0_TCB_SET_PRIORITY as u64,
-        priority,
-        0,
-        0,
-        0,
+    invoke_words(
+        tcb,
+        uapi::KERNITE_INV0_TCB_SET_PRIORITY,
+        uapi::KERNITE_INV_TCB_SET_PRIORITY,
+        [priority, 0, 0, 0],
     )
     .error as i32
 }
@@ -202,6 +255,15 @@ pub fn tcb_set_priority(tcb: CapRef, priority: u64) -> i32 {
 /// Copy FPU/SSE state from source TCB to destination TCB. Used
 /// during fork to preserve the parent's floating-point state.
 pub fn tcb_copy_fpu(dest_tcb: CapRef, src_tcb: CapRef) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            dest_tcb,
+            uapi::KERNITE_INV_TCB_COPY_FPU,
+            &[],
+            &[S::operand(src_tcb)],
+        ))
+        .error as i32;
+    }
     invoke(
         dest_tcb.addr(),
         uapi::KERNITE_INV0_TCB_COPY_FPU as u64,
@@ -216,26 +278,22 @@ pub fn tcb_copy_fpu(dest_tcb: CapRef, src_tcb: CapRef) -> i32 {
 /// Set the TLS base address (FS_BASE on x86_64, TPIDR_EL0 on
 /// aarch64) for a TCB.
 pub fn tcb_set_tls_base(tcb: CapRef, tls_base: u64) -> i32 {
-    invoke(
-        tcb.addr(),
-        uapi::KERNITE_INV0_TCB_SET_TLS_BASE as u64,
-        tls_base,
-        0,
-        0,
-        0,
+    invoke_words(
+        tcb,
+        uapi::KERNITE_INV0_TCB_SET_TLS_BASE,
+        uapi::KERNITE_INV_TCB_SET_TLS_BASE,
+        [tls_base, 0, 0, 0],
     )
     .error as i32
 }
 
 /// Set the process ABI thread pointer (GS_BASE on x86_64, x18 on aarch64).
 pub fn tcb_set_abi_tp(tcb: CapRef, abi_tp: u64) -> i32 {
-    invoke(
-        tcb.addr(),
-        uapi::KERNITE_INV0_TCB_SET_ABI_TP as u64,
-        abi_tp,
-        0,
-        0,
-        0,
+    invoke_words(
+        tcb,
+        uapi::KERNITE_INV0_TCB_SET_ABI_TP,
+        uapi::KERNITE_INV_TCB_SET_ABI_TP,
+        [abi_tp, 0, 0, 0],
     )
     .error as i32
 }
@@ -245,26 +303,22 @@ pub fn tcb_set_abi_tp(tcb: CapRef, abi_tp: u64) -> i32 {
 /// `guard_bottom` is the inclusive lower bound of the unmapped guard
 /// hole (0 = no guard tracked).
 pub fn tcb_set_stack_bounds(tcb: CapRef, stack_top: u64, stack_min: u64, guard_bottom: u64) -> i32 {
-    invoke(
-        tcb.addr(),
-        uapi::KERNITE_INV0_TCB_SET_STACK_BOUNDS as u64,
-        stack_top,
-        stack_min,
-        guard_bottom,
-        0,
+    invoke_words(
+        tcb,
+        uapi::KERNITE_INV0_TCB_SET_STACK_BOUNDS,
+        uapi::KERNITE_INV_TCB_SET_STACK_BOUNDS,
+        [stack_top, stack_min, guard_bottom, 0],
     )
     .error as i32
 }
 
 /// Select the scheduler class for a TCB.
 pub fn tcb_set_sched_class(tcb: CapRef, sched_class: u64) -> i32 {
-    invoke(
-        tcb.addr(),
-        uapi::KERNITE_INV0_TCB_SET_SCHED_CLASS as u64,
-        sched_class,
-        0,
-        0,
-        0,
+    invoke_words(
+        tcb,
+        uapi::KERNITE_INV0_TCB_SET_SCHED_CLASS,
+        uapi::KERNITE_INV_TCB_SET_SCHED_CLASS,
+        [sched_class, 0, 0, 0],
     )
     .error as i32
 }
@@ -277,13 +331,11 @@ pub fn tcb_set_sched_class(tcb: CapRef, sched_class: u64) -> i32 {
 /// thread. The underlying IPC buffer must stay mapped for the duration
 /// of the invocation.
 pub unsafe fn tcb_get_space_info_ctx(ctx: *mut IpcContext, tcb: CapRef) -> Option<u8> {
-    let r = invoke(
-        tcb.addr(),
-        uapi::KERNITE_INV0_TCB_GET_SPACE_INFO as u64,
-        0,
-        0,
-        0,
-        0,
+    let r = invoke_words(
+        tcb,
+        uapi::KERNITE_INV0_TCB_GET_SPACE_INFO,
+        uapi::KERNITE_INV_T_TCB_GET_SPACE_INFO,
+        [0, 0, 0, 0],
     );
     if r.error != 0 {
         return None;
@@ -308,13 +360,11 @@ pub unsafe fn tcb_get_space_info_ctx(ctx: *mut IpcContext, tcb: CapRef) -> Optio
 /// thread. The underlying IPC buffer must stay mapped for the duration
 /// of the invocation.
 pub unsafe fn tcb_get_cpu_times_ctx(ctx: *mut IpcContext, tcb: CapRef) -> Option<(u64, u64)> {
-    let r = invoke(
-        tcb.addr(),
-        uapi::KERNITE_INV0_TCB_GET_CPU_TIMES as u64,
-        0,
-        0,
-        0,
-        0,
+    let r = invoke_words(
+        tcb,
+        uapi::KERNITE_INV0_TCB_GET_CPU_TIMES,
+        uapi::KERNITE_INV_T_TCB_GET_CPU_TIMES,
+        [0, 0, 0, 0],
     );
     if r.error != 0 {
         return None;
@@ -333,13 +383,11 @@ pub unsafe fn tcb_get_cpu_times_ctx(ctx: *mut IpcContext, tcb: CapRef) -> Option
 
 /// Read the target TCB's stable kernel trace id.
 pub fn tcb_get_trace_id(tcb: CapRef) -> Option<u64> {
-    let r = invoke(
-        tcb.addr(),
-        uapi::KERNITE_INV0_TCB_GET_TRACE_ID as u64,
-        0,
-        0,
-        0,
-        0,
+    let r = invoke_words(
+        tcb,
+        uapi::KERNITE_INV0_TCB_GET_TRACE_ID,
+        uapi::KERNITE_INV_TCB_GET_TRACE_ID,
+        [0, 0, 0, 0],
     );
     if r.error != 0 { None } else { Some(r.value) }
 }
@@ -351,19 +399,21 @@ pub fn tcb_get_trace_id(tcb: CapRef) -> Option<u64> {
 /// Configure a scheduling context with budget and period
 /// (nanoseconds).
 pub fn sc_configure(sc: CapRef, budget_ns: u64, period_ns: u64) -> i32 {
-    invoke(
-        sc.addr(),
-        uapi::KERNITE_INV0_SC_CONFIGURE as u64,
-        budget_ns,
-        period_ns,
-        0,
-        0,
+    invoke_words(
+        sc,
+        uapi::KERNITE_INV0_SC_CONFIGURE,
+        uapi::KERNITE_INV_SC_CONFIGURE,
+        [budget_ns, period_ns, 0, 0],
     )
     .error as i32
 }
 
 /// Bind a scheduling context to a TCB.
 pub fn sc_bind(sc: CapRef, tcb: CapRef) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(sc, uapi::KERNITE_INV_SC_BIND, &[], &[S::operand(tcb)])).error
+            as i32;
+    }
     invoke(
         sc.addr(),
         uapi::KERNITE_INV0_SC_BIND as u64,
@@ -382,6 +432,15 @@ pub fn sc_bind(sc: CapRef, tcb: CapRef) -> i32 {
 /// Map a frame capability at `vaddr` in the given VSpace with
 /// `flags` (`VSPACE_FLAG_WRITABLE` / `_USER` / `_EXECUTABLE` / ...).
 pub fn vspace_map(vspace: CapRef, frame: CapRef, vaddr: u64, flags: u64) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            vspace,
+            uapi::KERNITE_INV_VSPACE_MAP,
+            &[vaddr, flags],
+            &[S::operand(frame)],
+        ))
+        .error as i32;
+    }
     invoke(
         vspace.addr(),
         uapi::KERNITE_INV0_VSPACE_MAP as u64,
@@ -401,13 +460,11 @@ pub fn vspace_map(vspace: CapRef, frame: CapRef, vaddr: u64, flags: u64) -> i32 
 /// `TronaVSpaceMemStats` shape will be promoted to `uapi` so this can
 /// take a typed pointer directly.
 pub fn vspace_get_mem_stats_raw(vspace: CapRef, out_uaddr: u64) -> u64 {
-    invoke(
-        vspace.addr(),
-        uapi::KERNITE_INV0_VSPACE_GET_MEM_STATS as u64,
-        out_uaddr,
-        0,
-        0,
-        0,
+    invoke_words(
+        vspace,
+        uapi::KERNITE_INV0_VSPACE_GET_MEM_STATS,
+        uapi::KERNITE_INV_T_VSPACE_GET_MEM_STATS,
+        [out_uaddr, 0, 0, 0],
     )
     .error
 }
@@ -420,39 +477,33 @@ pub fn vspace_get_range_stats_raw(
     page_count: u64,
     out_uaddr: u64,
 ) -> u64 {
-    invoke(
-        vspace.addr(),
-        uapi::KERNITE_INV0_VSPACE_GET_RANGE_STATS as u64,
-        start_vaddr,
-        page_count,
-        out_uaddr,
-        0,
+    invoke_words(
+        vspace,
+        uapi::KERNITE_INV0_VSPACE_GET_RANGE_STATS,
+        uapi::KERNITE_INV_T_VSPACE_GET_RANGE_STATS,
+        [start_vaddr, page_count, out_uaddr, 0],
     )
     .error
 }
 
 /// Read the target VSpace's stable kernel trace id.
 pub fn vspace_get_trace_id(vspace: CapRef) -> Option<u64> {
-    let r = invoke(
-        vspace.addr(),
-        uapi::KERNITE_INV0_VSPACE_GET_TRACE_ID as u64,
-        0,
-        0,
-        0,
-        0,
+    let r = invoke_words(
+        vspace,
+        uapi::KERNITE_INV0_VSPACE_GET_TRACE_ID,
+        uapi::KERNITE_INV_VSPACE_GET_TRACE_ID,
+        [0, 0, 0, 0],
     );
     if r.error != 0 { None } else { Some(r.value) }
 }
 
 /// Unmap the page at `vaddr` from the given VSpace.
 pub fn vspace_unmap(vspace: CapRef, vaddr: u64) -> i32 {
-    invoke(
-        vspace.addr(),
-        uapi::KERNITE_INV0_VSPACE_UNMAP as u64,
-        vaddr,
-        0,
-        0,
-        0,
+    invoke_words(
+        vspace,
+        uapi::KERNITE_INV0_VSPACE_UNMAP,
+        uapi::KERNITE_INV_VSPACE_UNMAP,
+        [vaddr, 0, 0, 0],
     )
     .error as i32
 }
@@ -460,26 +511,22 @@ pub fn vspace_unmap(vspace: CapRef, vaddr: u64) -> i32 {
 /// Change protection flags on the page at `vaddr` in the given
 /// VSpace.
 pub fn vspace_protect(vspace: CapRef, vaddr: u64, flags: u64) -> i32 {
-    invoke(
-        vspace.addr(),
-        uapi::KERNITE_INV0_VSPACE_PROTECT as u64,
-        vaddr,
-        flags,
-        0,
-        0,
+    invoke_words(
+        vspace,
+        uapi::KERNITE_INV0_VSPACE_PROTECT,
+        uapi::KERNITE_INV_T_VSPACE_PROTECT,
+        [vaddr, flags, 0, 0],
     )
     .error as i32
 }
 
 /// Change protection flags on a contiguous range of pages.
 pub fn vspace_protect_range(vspace: CapRef, vaddr: u64, count: u64, flags: u64) -> (i32, u64) {
-    let r = invoke(
-        vspace.addr(),
-        uapi::KERNITE_INV0_VSPACE_PROTECT_RANGE as u64,
-        vaddr,
-        count,
-        flags,
-        0,
+    let r = invoke_words(
+        vspace,
+        uapi::KERNITE_INV0_VSPACE_PROTECT_RANGE,
+        uapi::KERNITE_INV_T_VSPACE_PROTECT_RANGE,
+        [vaddr, count, flags, 0],
     );
     (r.error as i32, r.value)
 }
@@ -487,6 +534,15 @@ pub fn vspace_protect_range(vspace: CapRef, vaddr: u64, count: u64, flags: u64) 
 /// Map an intermediate page table at the given level for `vaddr`. `page_table`
 /// must be a `PageTable` cap (not a `Frame`) — see `VSPACE_MAP_PT`.
 pub fn vspace_map_pt(vspace: CapRef, page_table: CapRef, vaddr: u64, level: u64) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            vspace,
+            uapi::KERNITE_INV_VSPACE_MAP_PT,
+            &[vaddr, level],
+            &[S::operand(page_table)],
+        ))
+        .error as i32;
+    }
     invoke(
         vspace.addr(),
         uapi::KERNITE_INV0_VSPACE_MAP_PT as u64,
@@ -501,13 +557,11 @@ pub fn vspace_map_pt(vspace: CapRef, page_table: CapRef, vaddr: u64, level: u64)
 /// Walk the page table starting at `start_vaddr`, returning up to
 /// `max_entries` mapping entries via the IPC buffer.
 pub fn vspace_walk(vspace: CapRef, start_vaddr: u64, max_entries: u64) -> i32 {
-    invoke(
-        vspace.addr(),
-        uapi::KERNITE_INV0_VSPACE_WALK as u64,
-        start_vaddr,
-        max_entries,
-        0,
-        0,
+    invoke_words(
+        vspace,
+        uapi::KERNITE_INV0_VSPACE_WALK,
+        uapi::KERNITE_INV_T_VSPACE_WALK,
+        [start_vaddr, max_entries, 0, 0],
     )
     .error as i32
 }
@@ -516,13 +570,11 @@ pub fn vspace_walk(vspace: CapRef, start_vaddr: u64, max_entries: u64) -> i32 {
 /// Unlike `vspace_walk`, this does not advance to the next present
 /// mapping when `vaddr` itself is unmapped or demand-only.
 pub fn vspace_resolve_page(vspace: CapRef, vaddr: u64) -> (i32, u64) {
-    let r = invoke(
-        vspace.addr(),
-        uapi::KERNITE_INV0_VSPACE_RESOLVE_PAGE as u64,
-        vaddr,
-        0,
-        0,
-        0,
+    let r = invoke_words(
+        vspace,
+        uapi::KERNITE_INV0_VSPACE_RESOLVE_PAGE,
+        uapi::KERNITE_INV_T_VSPACE_RESOLVE_PAGE,
+        [vaddr, 0, 0, 0],
     );
     (r.error as i32, r.value)
 }
@@ -592,6 +644,15 @@ unsafe fn walk_ipc_words_ctx(ctx: *mut IpcContext) -> Option<*const u64> {
 /// Copy page contents from `src_vaddr` in `src_vspace` into
 /// `dst_frame`.
 pub fn vspace_copy_page(src_vspace: CapRef, src_vaddr: u64, dst_frame: CapRef) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            src_vspace,
+            uapi::KERNITE_INV_VSPACE_COPY_PAGE,
+            &[src_vaddr],
+            &[S::operand(dst_frame)],
+        ))
+        .error as i32;
+    }
     invoke(
         src_vspace.addr(),
         uapi::KERNITE_INV0_VSPACE_COPY_PAGE as u64,
@@ -612,6 +673,15 @@ pub fn vspace_map_device(
     vaddr: u64,
     flags: u64,
 ) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            vspace,
+            uapi::KERNITE_INV_T_VSPACE_MAP_DEVICE,
+            &[page_offset, vaddr, flags],
+            &[S::operand(device_untyped)],
+        ))
+        .error as i32;
+    }
     invoke(
         vspace.addr(),
         uapi::KERNITE_INV0_VSPACE_MAP_DEVICE as u64,
@@ -633,6 +703,19 @@ pub fn vspace_map_device_range(
     num_pages: u64,
     flags: u64,
 ) -> (i32, u64) {
+    if S::uses_descriptor() {
+        let r = S::invoke_operands(
+            vspace,
+            uapi::KERNITE_INV_T_VSPACE_MAP_DEVICE_RANGE,
+            &[
+                offset_start,
+                vaddr_start,
+                (num_pages << 32) | (flags & 0xFFFF_FFFF),
+            ],
+            &[S::operand(device_untyped)],
+        );
+        return (r.error as i32, r.value);
+    }
     let count_and_flags = (num_pages << 32) | (flags & 0xFFFF_FFFF);
     let r = invoke(
         vspace.addr(),
@@ -654,6 +737,15 @@ pub fn vspace_share_ro_page(
     dst_vspace: CapRef,
     dst_vaddr: u64,
 ) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            src_vspace,
+            uapi::KERNITE_INV_VSPACE_SHARE_RO_PAGE,
+            &[src_vaddr, dst_vaddr],
+            &[S::operand(dst_vspace)],
+        ))
+        .error as i32;
+    }
     invoke(
         src_vspace.addr(),
         uapi::KERNITE_INV0_VSPACE_SHARE_RO_PAGE as u64,
@@ -667,13 +759,11 @@ pub fn vspace_share_ro_page(
 
 /// Install a demand-page PTE at `vaddr` in the given VSpace.
 pub fn vspace_map_demand(vspace: CapRef, vaddr: u64, flags: u64) -> i32 {
-    invoke(
-        vspace.addr(),
-        uapi::KERNITE_INV0_VSPACE_MAP_DEMAND as u64,
-        vaddr,
-        flags,
-        0,
-        0,
+    invoke_words(
+        vspace,
+        uapi::KERNITE_INV0_VSPACE_MAP_DEMAND,
+        uapi::KERNITE_INV_T_VSPACE_MAP_DEMAND,
+        [vaddr, flags, 0, 0],
     )
     .error as i32
 }
@@ -686,6 +776,15 @@ pub fn vspace_set_cow_pool(
     src_cnode: CapRef,
     count: u64,
 ) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            vspace,
+            uapi::KERNITE_INV_T_VSPACE_SET_COW_POOL,
+            &[count],
+            &[S::operand(pool_frame), S::operand(src_cnode)],
+        ))
+        .error as i32;
+    }
     invoke(
         vspace.addr(),
         uapi::KERNITE_INV0_VSPACE_SET_COW_POOL as u64,
@@ -704,6 +803,15 @@ pub fn vspace_replenish_cow_pool(
     start_slot: u64,
     count: u64,
 ) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            vspace,
+            uapi::KERNITE_INV_T_VSPACE_REPLENISH_COW_POOL,
+            &[start_slot, count],
+            &[S::operand(src_cnode)],
+        ))
+        .error as i32;
+    }
     invoke(
         vspace.addr(),
         uapi::KERNITE_INV0_VSPACE_REPLENISH_COW_POOL as u64,
@@ -723,13 +831,11 @@ pub fn vspace_map_demand_range(
     count: u64,
     flags: u64,
 ) -> (i32, u64) {
-    let r = invoke(
-        vspace.addr(),
-        uapi::KERNITE_INV0_VSPACE_MAP_DEMAND_RANGE as u64,
-        vaddr_start,
-        count,
-        flags,
-        0,
+    let r = invoke_words(
+        vspace,
+        uapi::KERNITE_INV0_VSPACE_MAP_DEMAND_RANGE,
+        uapi::KERNITE_INV_T_VSPACE_MAP_DEMAND_RANGE,
+        [vaddr_start, count, flags, 0],
     );
     (r.error as i32, r.value)
 }
@@ -745,6 +851,20 @@ pub fn vspace_fork_range(
     va_start: u64,
     rollback_buffer_uaddr: u64,
 ) -> (i32, u64) {
+    if S::uses_descriptor() {
+        let r = S::invoke_operands(
+            parent_vspace,
+            uapi::KERNITE_INV_T_VSPACE_FORK_RANGE,
+            &[va_start, rollback_buffer_uaddr],
+            &[
+                S::operand(child_vspace),
+                S::optional_ref(state),
+                S::optional_ref(parent_shadow_mo),
+                S::operand(child_mo),
+            ],
+        );
+        return (r.error as i32, r.value);
+    }
     // arg0 packs the child VSpace cap (low 32) and the per-tree VmHierarchyState
     // cap `S` (high 32) — the invoke registers are otherwise full and a cap slot
     // is 32-bit. arg1 packs the shadow + child MO caps the same way.
@@ -772,6 +892,19 @@ pub fn vspace_undo_fork_range(
     va_start: u64,
     rollback_buffer_uaddr: u64,
 ) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            parent_vspace,
+            uapi::KERNITE_INV_T_VSPACE_UNDO_FORK_RANGE,
+            &[va_start, rollback_buffer_uaddr],
+            &[
+                S::operand(child_vspace),
+                S::operand(parent_shadow_mo),
+                S::operand(child_mo),
+            ],
+        ))
+        .error as i32;
+    }
     let packed_mo_caps =
         ((parent_shadow_mo.addr() & 0xFFFF_FFFF) << 32) | (child_mo.addr() & 0xFFFF_FFFF);
     invoke(
@@ -797,26 +930,22 @@ pub fn vspace_undo_fork_range(
 
 /// Set the guard value and guard bits on a CNode.
 pub fn cnode_set_guard(cnode: CapRef, guard: u64, guard_bits: u64) -> i32 {
-    invoke(
-        cnode.addr(),
-        uapi::KERNITE_INV0_CNODE_SET_GUARD as u64,
-        guard,
-        guard_bits,
-        0,
-        0,
+    invoke_words(
+        cnode,
+        uapi::KERNITE_INV0_CNODE_SET_GUARD,
+        uapi::KERNITE_INV_T_CNODE_SET_GUARD,
+        [guard, guard_bits, 0, 0],
     )
     .error as i32
 }
 
 /// Query CNode metadata via IPC buffer.
 pub fn cnode_get_info(cnode: CapRef) -> crate::core_types::TronaResult {
-    invoke(
-        cnode.addr(),
-        uapi::KERNITE_INV0_CNODE_GET_INFO as u64,
-        0,
-        0,
-        0,
-        0,
+    invoke_words(
+        cnode,
+        uapi::KERNITE_INV0_CNODE_GET_INFO,
+        uapi::KERNITE_INV_CNODE_GET_INFO,
+        [0, 0, 0, 0],
     )
 }
 
@@ -831,6 +960,15 @@ pub fn cnode_get_info(cnode: CapRef) -> crate::core_types::TronaResult {
 /// Bind an IRQ handler to an EventQueue. Subsequent IRQ assertions
 /// enqueue an `EVENT_TYPE_IRQ` record (carrying `cookie`) on the bound EQ.
 pub fn irq_bind_eq(irq_handler: CapRef, eq: CapRef, cookie: u64) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            irq_handler,
+            uapi::KERNITE_INV_IRQ_BIND_EQ,
+            &[cookie],
+            &[S::operand(eq)],
+        ))
+        .error as i32;
+    }
     invoke(
         irq_handler.addr(),
         uapi::KERNITE_INV0_IRQ_BIND_EQ as u64,
@@ -844,26 +982,22 @@ pub fn irq_bind_eq(irq_handler: CapRef, eq: CapRef, cookie: u64) -> i32 {
 
 /// Detach an IRQ handler from any bound EventQueue.
 pub fn irq_unbind_eq(irq_handler: CapRef) -> i32 {
-    invoke(
-        irq_handler.addr(),
-        uapi::KERNITE_INV0_IRQ_UNBIND_EQ as u64,
-        0,
-        0,
-        0,
-        0,
+    invoke_words(
+        irq_handler,
+        uapi::KERNITE_INV0_IRQ_UNBIND_EQ,
+        uapi::KERNITE_INV_IRQ_UNBIND_EQ,
+        [0, 0, 0, 0],
     )
     .error as i32
 }
 
 /// Acknowledge an IRQ (re-enable it in the interrupt controller).
 pub fn irq_ack(irq_handler: CapRef) -> i32 {
-    invoke(
-        irq_handler.addr(),
-        uapi::KERNITE_INV0_IRQ_ACK as u64,
-        0,
-        0,
-        0,
-        0,
+    invoke_words(
+        irq_handler,
+        uapi::KERNITE_INV0_IRQ_ACK,
+        uapi::KERNITE_INV_IRQ_ACK,
+        [0, 0, 0, 0],
     )
     .error as i32
 }
@@ -876,13 +1010,11 @@ pub fn irq_handler_ack(irq_handler: CapRef) -> i32 {
 /// port number and must lie within the cap's `IoPortRange`. Returns
 /// the kernel `SyscallError` (as `i32`) on rejection.
 pub fn ioport_read_8(ioport: CapRef, port: u64) -> Result<u8, i32> {
-    let r = invoke(
-        ioport.addr(),
-        uapi::KERNITE_INV0_IOPORT_READ_8 as u64,
-        port,
-        0,
-        0,
-        0,
+    let r = invoke_words(
+        ioport,
+        uapi::KERNITE_INV0_IOPORT_READ_8,
+        uapi::KERNITE_INV_IOPORT_READ_8,
+        [port, 0, 0, 0],
     );
     if r.error != 0 {
         Err(r.error as i32)
@@ -898,13 +1030,11 @@ pub fn ioport_in8(ioport: CapRef, port: u64) -> Result<u8, i32> {
 /// Write an 8-bit value to an I/O port. `port` is the absolute I/O
 /// port number and must lie within the cap's `IoPortRange`.
 pub fn ioport_write_8(ioport: CapRef, port: u64, value: u8) -> Result<(), i32> {
-    let r = invoke(
-        ioport.addr(),
-        uapi::KERNITE_INV0_IOPORT_WRITE_8 as u64,
-        port,
-        value as u64,
-        0,
-        0,
+    let r = invoke_words(
+        ioport,
+        uapi::KERNITE_INV0_IOPORT_WRITE_8,
+        uapi::KERNITE_INV_IOPORT_WRITE_8,
+        [port, value as u64, 0, 0],
     );
     if r.error != 0 {
         Err(r.error as i32)
@@ -920,13 +1050,11 @@ pub fn ioport_out8(ioport: CapRef, port: u64, value: u8) -> Result<(), i32> {
 /// Read a 16-bit value from an I/O port. `port` is the absolute I/O
 /// port number and must lie within the cap's `IoPortRange`.
 pub fn ioport_read_16(ioport: CapRef, port: u64) -> Result<u16, i32> {
-    let r = invoke(
-        ioport.addr(),
-        uapi::KERNITE_INV0_IOPORT_READ_16 as u64,
-        port,
-        0,
-        0,
-        0,
+    let r = invoke_words(
+        ioport,
+        uapi::KERNITE_INV0_IOPORT_READ_16,
+        uapi::KERNITE_INV_IOPORT_READ_16,
+        [port, 0, 0, 0],
     );
     if r.error != 0 {
         Err(r.error as i32)
@@ -942,13 +1070,11 @@ pub fn ioport_in16(ioport: CapRef, port: u64) -> Result<u16, i32> {
 /// Write a 16-bit value to an I/O port. `port` is the absolute I/O
 /// port number and must lie within the cap's `IoPortRange`.
 pub fn ioport_write_16(ioport: CapRef, port: u64, value: u16) -> Result<(), i32> {
-    let r = invoke(
-        ioport.addr(),
-        uapi::KERNITE_INV0_IOPORT_WRITE_16 as u64,
-        port,
-        value as u64,
-        0,
-        0,
+    let r = invoke_words(
+        ioport,
+        uapi::KERNITE_INV0_IOPORT_WRITE_16,
+        uapi::KERNITE_INV_IOPORT_WRITE_16,
+        [port, value as u64, 0, 0],
     );
     if r.error != 0 {
         Err(r.error as i32)
@@ -964,13 +1090,11 @@ pub fn ioport_out16(ioport: CapRef, port: u64, value: u16) -> Result<(), i32> {
 /// Read a 32-bit value from an I/O port. `port` is the absolute I/O
 /// port number and must lie within the cap's `IoPortRange`.
 pub fn ioport_read_32(ioport: CapRef, port: u64) -> Result<u32, i32> {
-    let r = invoke(
-        ioport.addr(),
-        uapi::KERNITE_INV0_IOPORT_READ_32 as u64,
-        port,
-        0,
-        0,
-        0,
+    let r = invoke_words(
+        ioport,
+        uapi::KERNITE_INV0_IOPORT_READ_32,
+        uapi::KERNITE_INV_IOPORT_READ_32,
+        [port, 0, 0, 0],
     );
     if r.error != 0 {
         Err(r.error as i32)
@@ -986,13 +1110,11 @@ pub fn ioport_in32(ioport: CapRef, port: u64) -> Result<u32, i32> {
 /// Write a 32-bit value to an I/O port. `port` is the absolute I/O
 /// port number and must lie within the cap's `IoPortRange`.
 pub fn ioport_write_32(ioport: CapRef, port: u64, value: u32) -> Result<(), i32> {
-    let r = invoke(
-        ioport.addr(),
-        uapi::KERNITE_INV0_IOPORT_WRITE_32 as u64,
-        port,
-        value as u64,
-        0,
-        0,
+    let r = invoke_words(
+        ioport,
+        uapi::KERNITE_INV0_IOPORT_WRITE_32,
+        uapi::KERNITE_INV_IOPORT_WRITE_32,
+        [port, value as u64, 0, 0],
     );
     if r.error != 0 {
         Err(r.error as i32)
@@ -1013,6 +1135,19 @@ pub fn ioport_out32(ioport: CapRef, port: u64, value: u32) -> Result<(), i32> {
 /// Status-only (Zircon `zx_vmo_op_range` model): returns `0` iff every requested
 /// page is resident-or-populated, else the first error. No count, no rollback.
 pub fn mo_commit(mo: CapRef, offset: u64, count: u64, ut_cap: u64) -> i32 {
+    if S::uses_descriptor() {
+        return (if ut_cap == 0 {
+            S::invoke_operands(mo, uapi::KERNITE_INV_MO_COMMIT, &[offset, count], &[])
+        } else {
+            S::invoke_operands(
+                mo,
+                uapi::KERNITE_INV_MO_COMMIT,
+                &[offset, count],
+                &[S::root_operand(ut_cap, 0)],
+            )
+        })
+        .error as i32;
+    }
     invoke(
         mo.addr(),
         uapi::KERNITE_INV0_MO_COMMIT as u64,
@@ -1026,25 +1161,37 @@ pub fn mo_commit(mo: CapRef, offset: u64, count: u64, ut_cap: u64) -> i32 {
 
 /// Decommit `count` pages starting at `offset`.
 pub fn mo_decommit(mo: CapRef, offset: u64, count: u64) -> i32 {
-    invoke(
-        mo.addr(),
-        uapi::KERNITE_INV0_MO_DECOMMIT as u64,
-        offset,
-        count,
-        0,
-        0,
+    invoke_words(
+        mo,
+        uapi::KERNITE_INV0_MO_DECOMMIT,
+        uapi::KERNITE_INV_MO_DECOMMIT,
+        [offset, count, 0, 0],
     )
     .error as i32
 }
 
 /// Get the page count of a MemoryObject.
 pub fn mo_get_size(mo: CapRef) -> (i32, u64) {
-    let r = invoke(mo.addr(), uapi::KERNITE_INV0_MO_GET_SIZE as u64, 0, 0, 0, 0);
+    let r = invoke_words(
+        mo,
+        uapi::KERNITE_INV0_MO_GET_SIZE,
+        uapi::KERNITE_INV_MO_GET_SIZE,
+        [0, 0, 0, 0],
+    );
     (r.error as i32, r.value)
 }
 
 /// Initialize an existing child MemoryObject as a COW clone of `mo`.
 pub fn mo_clone(mo: CapRef, child_mo: CapRef, flags: u64, state: CapRef) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            mo,
+            uapi::KERNITE_INV_MO_CLONE,
+            &[flags],
+            &[S::operand(child_mo), S::optional_ref(state)],
+        ))
+        .error as i32;
+    }
     // arg2 is the per-tree VmHierarchyState `S` — required to bind a standalone
     // parent into a fresh COW tree; ignored (and reaped by the caller) when the
     // parent is already bound.
@@ -1073,6 +1220,15 @@ pub fn mo_clone_range(
     child_page_count: u64,
     state: CapRef,
 ) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            mo,
+            uapi::KERNITE_INV_T_MO_CLONE_RANGE,
+            &[offset_pages, child_page_count],
+            &[S::operand(child_mo), S::optional_ref(state)],
+        ))
+        .error as i32;
+    }
     invoke(
         mo.addr(),
         uapi::KERNITE_INV0_MO_CLONE_RANGE as u64,
@@ -1106,6 +1262,15 @@ pub fn mo_mark_executable_ref(
     dest_cnode: CapRef,
     dest_slot: CapRef,
 ) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            exec_authority,
+            uapi::KERNITE_INV_T_MO_MARK_EXECUTABLE,
+            &[],
+            &[S::operand(src_mo), S::slot_operand(dest_cnode, dest_slot)],
+        ))
+        .error as i32;
+    }
     write_invoke_depth(src_mo.depth(), dest_slot.depth());
     invoke(
         exec_authority.addr(),
@@ -1131,6 +1296,15 @@ pub fn mo_populate_borrowed(
     device_offset: u64,
     page_count: u64,
 ) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            mo,
+            uapi::KERNITE_INV_MO_POPULATE_BORROWED,
+            &[device_offset, page_count],
+            &[S::operand(device_ut)],
+        ))
+        .error as i32;
+    }
     invoke(
         mo.addr(),
         uapi::KERNITE_INV0_MO_POPULATE_BORROWED as u64,
@@ -1145,13 +1319,11 @@ pub fn mo_populate_borrowed(
 /// Resize a MemoryObject (only works if created with the resizable
 /// flag).
 pub fn mo_resize(mo: CapRef, new_page_count: u64) -> i32 {
-    invoke(
-        mo.addr(),
-        uapi::KERNITE_INV0_MO_RESIZE as u64,
-        new_page_count,
-        0,
-        0,
-        0,
+    invoke_words(
+        mo,
+        uapi::KERNITE_INV0_MO_RESIZE,
+        uapi::KERNITE_INV_MO_RESIZE,
+        [new_page_count, 0, 0, 0],
     )
     .error as i32
 }
@@ -1159,13 +1331,11 @@ pub fn mo_resize(mo: CapRef, new_page_count: u64) -> i32 {
 /// Read bytes from a committed MemoryObject range into the caller
 /// IPC buffer.
 pub fn mo_read(mo: CapRef, offset: u64, count: u64) -> (i32, u64) {
-    let r = invoke(
-        mo.addr(),
-        uapi::KERNITE_INV0_MO_READ as u64,
-        offset,
-        count,
-        0,
-        0,
+    let r = invoke_words(
+        mo,
+        uapi::KERNITE_INV0_MO_READ,
+        uapi::KERNITE_INV_MO_READ,
+        [offset, count, 0, 0],
     );
     (r.error as i32, r.value)
 }
@@ -1173,13 +1343,11 @@ pub fn mo_read(mo: CapRef, offset: u64, count: u64) -> (i32, u64) {
 /// Write bytes from the caller IPC buffer into a committed
 /// MemoryObject range.
 pub fn mo_write(mo: CapRef, offset: u64, count: u64) -> (i32, u64) {
-    let r = invoke(
-        mo.addr(),
-        uapi::KERNITE_INV0_MO_WRITE as u64,
-        offset,
-        count,
-        0,
-        0,
+    let r = invoke_words(
+        mo,
+        uapi::KERNITE_INV0_MO_WRITE,
+        uapi::KERNITE_INV_MO_WRITE,
+        [offset, count, 0, 0],
     );
     (r.error as i32, r.value)
 }
@@ -1187,13 +1355,11 @@ pub fn mo_write(mo: CapRef, offset: u64, count: u64) -> (i32, u64) {
 /// Return whether a page already resolves in this MemoryObject or
 /// any COW ancestor.
 pub fn mo_has_page(mo: CapRef, page_index: u64) -> (i32, bool) {
-    let r = invoke(
-        mo.addr(),
-        uapi::KERNITE_INV0_MO_HAS_PAGE as u64,
-        page_index,
-        0,
-        0,
-        0,
+    let r = invoke_words(
+        mo,
+        uapi::KERNITE_INV0_MO_HAS_PAGE,
+        uapi::KERNITE_INV_MO_HAS_PAGE,
+        [page_index, 0, 0, 0],
     );
     (r.error as i32, r.value != 0)
 }
@@ -1201,13 +1367,11 @@ pub fn mo_has_page(mo: CapRef, page_index: u64) -> (i32, bool) {
 /// Return the number of reverse-map entries currently observing
 /// this MemoryObject.
 pub fn mo_get_map_count(mo: CapRef) -> (i32, u64) {
-    let r = invoke(
-        mo.addr(),
-        uapi::KERNITE_INV0_MO_GET_MAP_COUNT as u64,
-        0,
-        0,
-        0,
-        0,
+    let r = invoke_words(
+        mo,
+        uapi::KERNITE_INV0_MO_GET_MAP_COUNT,
+        uapi::KERNITE_INV_MO_GET_MAP_COUNT,
+        [0, 0, 0, 0],
     );
     (r.error as i32, r.value)
 }
@@ -1220,13 +1384,11 @@ pub fn mo_update_page_flags(
     set_flags: u64,
     clear_flags: u64,
 ) -> (i32, u64) {
-    let r = invoke(
-        mo.addr(),
-        uapi::KERNITE_INV0_MO_UPDATE_PAGE_FLAGS as u64,
-        page_index,
-        set_flags,
-        clear_flags,
-        0,
+    let r = invoke_words(
+        mo,
+        uapi::KERNITE_INV0_MO_UPDATE_PAGE_FLAGS,
+        uapi::KERNITE_INV_MO_UPDATE_PAGE_FLAGS,
+        [page_index, set_flags, clear_flags, 0],
     );
     (r.error as i32, r.value)
 }
@@ -1240,6 +1402,15 @@ pub fn vspace_map_mo_with_count(
     mo_offset: u64,
     count_and_flags: u64,
 ) -> (i32, u64) {
+    if S::uses_descriptor() {
+        let r = S::invoke_operands(
+            vspace,
+            uapi::KERNITE_INV_VSPACE_MAP_MO,
+            &[vaddr, mo_offset, count_and_flags],
+            &[S::root_operand(mo_cap, 0)],
+        );
+        return (r.error as i32, r.value);
+    }
     let r = invoke(
         vspace.addr(),
         uapi::KERNITE_INV0_VSPACE_MAP_MO as u64,
@@ -1302,6 +1473,18 @@ pub fn device_control_create_ioport_depth(
     dest_slot: u64,
     dest_depth: u8,
 ) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            device_control,
+            uapi::KERNITE_INV_DEVICE_CONTROL_CREATE_IOPORT,
+            &[base_port, num_ports],
+            &[S::slot_operand(
+                dest_cspace,
+                CapRef::at_depth(dest_slot, dest_depth),
+            )],
+        ))
+        .error as i32;
+    }
     write_invoke_depth(dest_depth, 0);
     invoke(
         device_control.addr(),
@@ -1339,6 +1522,18 @@ pub fn device_control_create_device_untyped_depth(
     dest_slot: u64,
     dest_depth: u8,
 ) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            device_control,
+            uapi::KERNITE_INV_T_DEVICE_CONTROL_CREATE_DEVICE_UNTYPED,
+            &[phys_addr, size_bits],
+            &[S::slot_operand(
+                dest_cspace,
+                CapRef::at_depth(dest_slot, dest_depth),
+            )],
+        ))
+        .error as i32;
+    }
     write_invoke_depth(dest_depth, 0);
     invoke(
         device_control.addr(),
@@ -1376,6 +1571,18 @@ pub fn device_control_create_irq_handler_depth(
     flags: u64,
     dest_depth: u8,
 ) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            device_control,
+            uapi::KERNITE_INV_DEVICE_CONTROL_CREATE_IRQ_HANDLER,
+            &[irq, flags],
+            &[S::slot_operand(
+                dest_cspace,
+                CapRef::at_depth(dest_slot, dest_depth),
+            )],
+        ))
+        .error as i32;
+    }
     write_invoke_depth(dest_depth, 0);
     invoke(
         device_control.addr(),
@@ -1424,6 +1631,19 @@ pub fn cnode_copy_depth(
     src_depth: u8,
     dest_depth: u8,
 ) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            src_cnode,
+            uapi::KERNITE_INV_CNODE_COPY,
+            &[rights],
+            &[
+                S::slot_operand(src_cnode, CapRef::at_depth(src_slot, src_depth)),
+                S::operand(dest_cnode),
+                S::slot_operand(dest_cnode, CapRef::at_depth(dest_slot, dest_depth)),
+            ],
+        ))
+        .error as i32;
+    }
     write_invoke_depth(src_depth, dest_depth);
     invoke(
         src_cnode.addr(),
@@ -1461,6 +1681,19 @@ pub fn cnode_copy_ref(
     dest: CapRef,
     rights: u64,
 ) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            src_cnode,
+            uapi::KERNITE_INV_CNODE_COPY,
+            &[rights],
+            &[
+                S::slot_operand(src_cnode, src),
+                S::operand(dest_cnode),
+                S::slot_operand(dest_cnode, dest),
+            ],
+        ))
+        .error as i32;
+    }
     cnode_copy_depth(
         src_cnode,
         src.addr(),
@@ -1495,6 +1728,19 @@ pub fn cnode_mint_depth(
     src_depth: u8,
     dest_depth: u8,
 ) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            src_cnode,
+            uapi::KERNITE_INV_CNODE_MINT,
+            &[badge],
+            &[
+                S::slot_operand(src_cnode, CapRef::at_depth(src_slot, src_depth)),
+                S::operand(dest_cnode),
+                S::slot_operand(dest_cnode, CapRef::at_depth(dest_slot, dest_depth)),
+            ],
+        ))
+        .error as i32;
+    }
     write_invoke_depth(src_depth, dest_depth);
     invoke(
         src_cnode.addr(),
@@ -1516,6 +1762,19 @@ pub fn cnode_mint_ref(
     dest: CapRef,
     badge: u64,
 ) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            src_cnode,
+            uapi::KERNITE_INV_CNODE_MINT,
+            &[badge],
+            &[
+                S::slot_operand(src_cnode, src),
+                S::operand(dest_cnode),
+                S::slot_operand(dest_cnode, dest),
+            ],
+        ))
+        .error as i32;
+    }
     cnode_mint_depth(
         src_cnode,
         src.addr(),
@@ -1543,6 +1802,19 @@ pub fn cnode_move_depth(
     dest_depth: u8,
     src_depth: u8,
 ) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            dest_cnode,
+            uapi::KERNITE_INV_CNODE_MOVE,
+            &[],
+            &[
+                S::slot_operand(dest_cnode, CapRef::at_depth(dest_slot, dest_depth)),
+                S::operand(src_cnode),
+                S::slot_operand(src_cnode, CapRef::at_depth(src_slot, src_depth)),
+            ],
+        ))
+        .error as i32;
+    }
     write_invoke_depth(dest_depth, src_depth);
     invoke(
         dest_cnode.addr(),
@@ -1560,6 +1832,19 @@ pub fn cnode_move_depth(
 /// `OwnedSlot::borrow()` so the depth rides on the reference instead of being
 /// re-derived at the move site.
 pub fn cnode_move_ref(dest_cnode: CapRef, dest: CapRef, src_cnode: CapRef, src: CapRef) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            dest_cnode,
+            uapi::KERNITE_INV_CNODE_MOVE,
+            &[],
+            &[
+                S::slot_operand(dest_cnode, dest),
+                S::operand(src_cnode),
+                S::slot_operand(src_cnode, src),
+            ],
+        ))
+        .error as i32;
+    }
     cnode_move_depth(
         dest_cnode,
         dest.addr(),
@@ -1593,6 +1878,19 @@ pub fn cnode_mutate_depth(
     dest_depth: u8,
     src_depth: u8,
 ) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            dest_cnode,
+            uapi::KERNITE_INV_CNODE_MUTATE,
+            &[badge],
+            &[
+                S::slot_operand(dest_cnode, CapRef::at_depth(dest_slot, dest_depth)),
+                S::operand(src_cnode),
+                S::slot_operand(src_cnode, CapRef::at_depth(src_slot, src_depth)),
+            ],
+        ))
+        .error as i32;
+    }
     write_invoke_depth(dest_depth, src_depth);
     invoke(
         dest_cnode.addr(),
@@ -1614,6 +1912,19 @@ pub fn cnode_mutate_ref(
     src: CapRef,
     badge: u64,
 ) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            dest_cnode,
+            uapi::KERNITE_INV_CNODE_MUTATE,
+            &[badge],
+            &[
+                S::slot_operand(dest_cnode, dest),
+                S::operand(src_cnode),
+                S::slot_operand(src_cnode, src),
+            ],
+        ))
+        .error as i32;
+    }
     cnode_mutate_depth(
         dest_cnode,
         dest.addr(),
@@ -1626,6 +1937,15 @@ pub fn cnode_mutate_ref(
 }
 
 pub fn cnode_delete_depth(cnode: CapRef, slot: u64, depth: u8) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            cnode,
+            uapi::KERNITE_INV_CNODE_DELETE,
+            &[],
+            &[S::slot_operand(cnode, CapRef::at_depth(slot, depth))],
+        ))
+        .error as i32;
+    }
     write_invoke_depth(depth, 0);
     invoke(
         cnode.addr(),
@@ -1643,6 +1963,15 @@ pub fn cnode_delete(cnode: CapRef, slot: u64) -> i32 {
 }
 
 pub fn cnode_revoke_depth(cnode: CapRef, slot: u64, depth: u8) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            cnode,
+            uapi::KERNITE_INV_CNODE_REVOKE,
+            &[],
+            &[S::slot_operand(cnode, CapRef::at_depth(slot, depth))],
+        ))
+        .error as i32;
+    }
     write_invoke_depth(depth, 0);
     invoke(
         cnode.addr(),
@@ -1664,18 +1993,25 @@ pub fn cnode_revoke(cnode: CapRef, slot: u64) -> i32 {
 // ---------------------------------------------------------------------------
 
 pub fn eq_wait(eq: CapRef, deadline: u64) -> i32 {
-    invoke(
-        eq.addr(),
-        uapi::KERNITE_INV0_EQ_WAIT as u64,
-        deadline,
-        0,
-        0,
-        0,
+    invoke_words(
+        eq,
+        uapi::KERNITE_INV0_EQ_WAIT,
+        uapi::KERNITE_INV_EQ_WAIT,
+        [deadline, 0, 0, 0],
     )
     .error as i32
 }
 
 pub fn watch_register(watch: CapRef, watched: CapRef, eq: CapRef, mask: u64, cookie: u64) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            watch,
+            uapi::KERNITE_INV_WATCH_REGISTER,
+            &[mask, cookie],
+            &[S::operand(watched), S::operand(eq)],
+        ))
+        .error as i32;
+    }
     invoke(
         watch.addr(),
         uapi::KERNITE_INV0_WATCH_REGISTER as u64,
@@ -1688,6 +2024,15 @@ pub fn watch_register(watch: CapRef, watched: CapRef, eq: CapRef, mask: u64, coo
 }
 
 pub fn mp_core_pair(core: CapRef, send: CapRef, recv: CapRef) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            core,
+            uapi::KERNITE_INV_MP_CORE_PAIR,
+            &[],
+            &[S::operand(send), S::operand(recv)],
+        ))
+        .error as i32;
+    }
     invoke(
         core.addr(),
         uapi::KERNITE_INV0_MP_CORE_PAIR as u64,
@@ -1700,6 +2045,15 @@ pub fn mp_core_pair(core: CapRef, send: CapRef, recv: CapRef) -> i32 {
 }
 
 pub fn dp_core_pair(core: CapRef, producer: CapRef, consumer: CapRef, datagram: bool) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            core,
+            uapi::KERNITE_INV_DP_CORE_PAIR,
+            &[datagram as u64],
+            &[S::operand(producer), S::operand(consumer)],
+        ))
+        .error as i32;
+    }
     invoke(
         core.addr(),
         uapi::KERNITE_INV0_DP_CORE_PAIR as u64,
@@ -1714,13 +2068,11 @@ pub fn dp_core_pair(core: CapRef, producer: CapRef, consumer: CapRef, datagram: 
 /// Set a DataPipe side's RX byte threshold (`STATE_READ_THRESHOLD` asserts
 /// when inbound `used >= threshold`; `0` disables).
 pub fn dp_set_rx_threshold(side: CapRef, threshold: u32) -> i32 {
-    invoke(
-        side.addr(),
-        uapi::KERNITE_INV0_DP_SET_RX_THRESHOLD as u64,
-        threshold as u64,
-        0,
-        0,
-        0,
+    invoke_words(
+        side,
+        uapi::KERNITE_INV0_DP_SET_RX_THRESHOLD,
+        uapi::KERNITE_INV_DP_SET_RX_THRESHOLD,
+        [threshold as u64, 0, 0, 0],
     )
     .error as i32
 }
@@ -1728,13 +2080,11 @@ pub fn dp_set_rx_threshold(side: CapRef, threshold: u32) -> i32 {
 /// Set a DataPipe side's TX free-space threshold (`STATE_WRITE_THRESHOLD`
 /// asserts when outbound `free >= threshold`; `0` disables).
 pub fn dp_set_tx_threshold(side: CapRef, threshold: u32) -> i32 {
-    invoke(
-        side.addr(),
-        uapi::KERNITE_INV0_DP_SET_TX_THRESHOLD as u64,
-        threshold as u64,
-        0,
-        0,
-        0,
+    invoke_words(
+        side,
+        uapi::KERNITE_INV0_DP_SET_TX_THRESHOLD,
+        uapi::KERNITE_INV_DP_SET_TX_THRESHOLD,
+        [threshold as u64, 0, 0, 0],
     )
     .error as i32
 }
@@ -1742,13 +2092,11 @@ pub fn dp_set_tx_threshold(side: CapRef, threshold: u32) -> i32 {
 /// Half-close a DataPipe side's write direction: further produce returns
 /// `PeerClosed` and the peer reader sees EOF after draining.
 pub fn dp_shutdown(side: CapRef) -> i32 {
-    invoke(
-        side.addr(),
-        uapi::KERNITE_INV0_DP_SHUTDOWN as u64,
-        0,
-        0,
-        0,
-        0,
+    invoke_words(
+        side,
+        uapi::KERNITE_INV0_DP_SHUTDOWN,
+        uapi::KERNITE_INV_DP_SHUTDOWN,
+        [0, 0, 0, 0],
     )
     .error as i32
 }
@@ -1772,13 +2120,11 @@ pub fn dp_shutdown(side: CapRef) -> i32 {
 /// The kernel side is queue hygiene + teardown determinism, not the
 /// truth source for stale-event safety.
 pub fn watch_cancel(watch: CapRef) -> i32 {
-    invoke(
-        watch.addr(),
-        uapi::KERNITE_INV0_WATCH_CANCEL as u64,
-        0,
-        0,
-        0,
-        0,
+    invoke_words(
+        watch,
+        uapi::KERNITE_INV0_WATCH_CANCEL,
+        uapi::KERNITE_INV_WATCH_CANCEL,
+        [0, 0, 0, 0],
     )
     .error as i32
 }
@@ -1788,6 +2134,15 @@ pub fn watch_cancel(watch: CapRef) -> i32 {
 /// fire the kernel enqueues an `EVENT_TYPE_TIMER` record carrying `cookie` on
 /// the bound `EventQueue`.
 pub fn timer_set(timer: CapRef, deadline_ns: u64, period_ns: u64, eq: CapRef, cookie: u64) -> i32 {
+    if S::uses_descriptor() {
+        return (S::invoke_operands(
+            timer,
+            uapi::KERNITE_INV_TIMER_SET,
+            &[deadline_ns, period_ns, cookie],
+            &[S::operand(eq)],
+        ))
+        .error as i32;
+    }
     invoke(
         timer.addr(),
         uapi::KERNITE_INV0_TIMER_SET as u64,
@@ -1801,13 +2156,11 @@ pub fn timer_set(timer: CapRef, deadline_ns: u64, period_ns: u64, eq: CapRef, co
 
 /// Disarm a `Timer`.
 pub fn timer_cancel(timer: CapRef) -> i32 {
-    invoke(
-        timer.addr(),
-        uapi::KERNITE_INV0_TIMER_CANCEL as u64,
-        0,
-        0,
-        0,
-        0,
+    invoke_words(
+        timer,
+        uapi::KERNITE_INV0_TIMER_CANCEL,
+        uapi::KERNITE_INV_TIMER_CANCEL,
+        [0, 0, 0, 0],
     )
     .error as i32
 }

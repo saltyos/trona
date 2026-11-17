@@ -487,6 +487,11 @@ pub fn slot_alloc_matches_layout(layout: &SaltyOSCspaceLayoutV1, frame_floor: u6
     }
 }
 
+/// The root CSpace radix the allocator was set up with; 0 before set-up.
+pub fn root_bits() -> u8 {
+    unsafe { (*(&raw const SLOT_ALLOC)).root_bits }
+}
+
 /// Return the observed CSpace depth after expansion (root_bits + sub_bits).
 ///
 /// Returns 0 if no expansion has occurred (flat single-level CSpace).

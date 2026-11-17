@@ -38,13 +38,23 @@
 //! not touch the user stack — the kernel switches to its own
 //! per-thread stack.
 
-use crate::core_types::TronaResult;
+use crate::core_types::{CNodeRef, Cap, CapRef, KerniteCapRef, KerniteInvokeDesc, TronaResult};
+use core::sync::atomic::{AtomicU8, AtomicU64, Ordering};
 
 unsafe extern "C" {
     fn trona_kernel_invoke_raw(
         out: *mut TronaResult,
         cap_ptr: u64,
         invoke_label: u64,
+        a2: u64,
+        a3: u64,
+        a4: u64,
+        a5: u64,
+    );
+    fn trona_kernel_invoke_desc_raw(
+        out: *mut TronaResult,
+        desc_uaddr: u64,
+        a1: u64,
         a2: u64,
         a3: u64,
         a4: u64,
@@ -66,6 +76,200 @@ pub fn invoke(cap_ptr: u64, invoke_label: u64, a2: u64, a3: u64, a4: u64, a5: u6
     result
 }
 
+/// The calling form the typed wrappers of this library issue.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum InvokeForm {
+    /// `KERNITE_SYS_INVOKE`: target slot, `KERNITE_INV0_*` label and four
+    /// argument words in registers.
+    Register,
+    /// `KERNITE_SYS_INVOKE_DESC`: a `kernite_invoke_desc` with a
+    /// `KERNITE_INV_*` label.
+    Descriptor,
+}
+
+/// The process-wide calling form; the register call until start-up selects
+/// the descriptor call.
+static INVOKE_FORM: AtomicU8 = AtomicU8::new(0);
+/// The radix of the process's root CSpace, for naming root slots in a
+/// descriptor; 0 until start-up records it.
+static ROOT_BITS: AtomicU8 = AtomicU8::new(0);
+/// A root slot this process keeps empty for the whole run, named for an
+/// absent optional operand; 0 until start-up allocates it.
+static ABSENT_SLOT: AtomicU64 = AtomicU64::new(0);
+
+/// The root CSpace addresses an expansion sub-CNode entry as
+/// `(root_slot << ROOT_EXPAND_BITS) | subslot` for root slots in
+/// `ROOT_EXPAND_BASE..ROOT_EXPAND_BASE + ROOT_EXPAND_COUNT`; such an
+/// address walks the root and the sub-CNode.
+const ROOT_EXPAND_BASE: u64 = 1008;
+const ROOT_EXPAND_COUNT: u64 = 64;
+const ROOT_EXPAND_BITS: u8 = 10;
+
+pub fn set_invoke_form(form: InvokeForm) {
+    INVOKE_FORM.store(form as u8, Ordering::Release);
+}
+
+pub fn invoke_form() -> InvokeForm {
+    if INVOKE_FORM.load(Ordering::Acquire) == InvokeForm::Descriptor as u8 {
+        InvokeForm::Descriptor
+    } else {
+        InvokeForm::Register
+    }
+}
+
+/// Record the root CSpace radix.
+pub fn set_root_bits(bits: u8) {
+    ROOT_BITS.store(bits, Ordering::Release);
+}
+
+/// Record the root slot named for an absent optional operand. The caller
+/// keeps the slot empty for the rest of the process.
+pub fn set_absent_slot(slot: Cap) {
+    ABSENT_SLOT.store(slot, Ordering::Release);
+}
+
+/// The depth that names `addr` from the root CSpace: an expansion address
+/// walks the root and its sub-CNode, any other address the root alone.
+pub fn root_depth(addr: Cap) -> u8 {
+    let root = ROOT_BITS.load(Ordering::Acquire);
+    let root_slot = addr >> ROOT_EXPAND_BITS;
+    if (ROOT_EXPAND_BASE..ROOT_EXPAND_BASE + ROOT_EXPAND_COUNT).contains(&root_slot) {
+        root + ROOT_EXPAND_BITS
+    } else {
+        root
+    }
+}
+
+/// The operand naming root slot `addr`; `depth` 0 takes the depth the
+/// address needs.
+pub fn root_operand(addr: Cap, depth: u8) -> KerniteCapRef {
+    let depth = if depth != 0 { depth } else { root_depth(addr) };
+    KerniteCapRef::new(CNodeRef::ROOT, addr, depth)
+}
+
+/// The operand `cap` names: a root slot, or an entry of another CNode
+/// named through it with its own depth.
+pub fn operand(cap: CapRef) -> KerniteCapRef {
+    if cap.cnode().is_root() {
+        root_operand(cap.index(), cap.depth())
+    } else {
+        KerniteCapRef::new(cap.cnode(), cap.index(), cap.depth())
+    }
+}
+
+/// The CNode authority the CNode capability at root reference `cnode`
+/// gives.
+pub fn cnode_authority(cnode: CapRef) -> CNodeRef {
+    let addr = cnode.index();
+    let depth = if cnode.depth() != 0 {
+        cnode.depth()
+    } else if (ROOT_EXPAND_BASE..ROOT_EXPAND_BASE + ROOT_EXPAND_COUNT)
+        .contains(&(addr >> ROOT_EXPAND_BITS))
+    {
+        root_depth(addr)
+    } else {
+        0
+    };
+    // SAFETY: `cnode` names a CNode capability of the root CSpace; with
+    // depth 0 the kernel reads the root entry at `addr` directly.
+    unsafe { CNodeRef::from_raw(addr, depth) }
+}
+
+/// The operand naming entry `slot` of the CNode `cnode` names: a root slot
+/// when `cnode` is the root CSpace, else the entry through that CNode for
+/// exactly `depth` bits. A `slot` reference relative to a CNode of its own
+/// is named as it is.
+pub fn slot_operand(cnode: CapRef, slot: CapRef) -> KerniteCapRef {
+    if !slot.cnode().is_root() {
+        return operand(slot);
+    }
+    if cnode.cnode().is_root() && cnode.index() == uapi::KERNITE_CAP_SELF_CSPACE {
+        return root_operand(slot.index(), slot.depth());
+    }
+    KerniteCapRef::new(cnode_authority(cnode), slot.index(), slot.depth())
+}
+
+/// The operand for an absent optional capability: the process's empty
+/// slot.
+pub fn absent_operand() -> KerniteCapRef {
+    root_operand(ABSENT_SLOT.load(Ordering::Acquire), 0)
+}
+
+/// The operand for a register-call slot word in which 0 names no
+/// capability.
+pub fn optional_operand(word: Cap) -> KerniteCapRef {
+    if word == 0 {
+        absent_operand()
+    } else {
+        root_operand(word, 0)
+    }
+}
+
+/// The operand for an optional capability reference; the null reference
+/// names the absent operand.
+pub fn optional_ref(cap: CapRef) -> KerniteCapRef {
+    if cap.is_null() {
+        absent_operand()
+    } else {
+        operand(cap)
+    }
+}
+
+/// Trap into the kernel with the descriptor call.
+#[inline(always)]
+pub fn invoke_desc(desc: &KerniteInvokeDesc) -> TronaResult {
+    let mut result = TronaResult { error: 0, value: 0 };
+    // SAFETY: `result` is a valid out buffer and `desc` stays live for the
+    // synchronous trap; the assembly helper preserves the Rust C ABI.
+    unsafe {
+        trona_kernel_invoke_desc_raw(
+            &mut result,
+            desc as *const KerniteInvokeDesc as u64,
+            0,
+            0,
+            0,
+            0,
+            0,
+        );
+    }
+    result
+}
+
+/// Invoke an operation whose arguments are scalar words: `label0` with the
+/// words in registers, or `label1` with the same words as descriptor
+/// arguments, by the process's form.
+#[inline]
+pub fn invoke_words(target: CapRef, label0: u64, label1: u64, args: [u64; 4]) -> TronaResult {
+    match invoke_form() {
+        InvokeForm::Register => invoke(target.addr(), label0, args[0], args[1], args[2], args[3]),
+        InvokeForm::Descriptor => {
+            invoke_desc(&KerniteInvokeDesc::new(operand(target), label1).with_args(&args))
+        }
+    }
+}
+
+/// The descriptor call of `label` on `target` with argument words and
+/// capability operands.
+#[inline]
+pub fn invoke_operands(
+    target: CapRef,
+    label: u64,
+    args: &[u64],
+    caps: &[KerniteCapRef],
+) -> TronaResult {
+    invoke_desc(
+        &KerniteInvokeDesc::new(operand(target), label)
+            .with_args(args)
+            .with_caps(caps),
+    )
+}
+
+/// True when the typed wrappers issue the descriptor call.
+#[inline]
+pub fn uses_descriptor() -> bool {
+    invoke_form() == InvokeForm::Descriptor
+}
+
 // ---------------------------------------------------------------------------
 // Futex on `CAP_SELF_VSPACE`. Wait/wake addresses are user-space
 // virtual addresses; the kernel hashes per-VSpace.
@@ -76,13 +280,11 @@ pub fn invoke(cap_ptr: u64, invoke_label: u64, a2: u64, a3: u64, a4: u64, a5: u6
 /// took effect.
 #[inline]
 pub fn futex_wait(addr: *const u32, expected: u32) -> u64 {
-    invoke(
-        uapi::KERNITE_CAP_SELF_VSPACE as u64,
-        uapi::KERNITE_INV0_VSPACE_FUTEX_WAIT as u64,
-        addr as u64,
-        expected as u64,
-        0,
-        0,
+    invoke_words(
+        CapRef::flat(uapi::KERNITE_CAP_SELF_VSPACE as u64),
+        uapi::KERNITE_INV0_VSPACE_FUTEX_WAIT,
+        uapi::KERNITE_INV_VSPACE_FUTEX_WAIT,
+        [addr as u64, expected as u64, 0, 0],
     )
     .error
 }
@@ -92,13 +294,11 @@ pub fn futex_wait(addr: *const u32, expected: u32) -> u64 {
 /// value changed, `KERNITE_ERR_TIMED_OUT` once the deadline elapses.
 #[inline]
 pub fn futex_wait_timeout(addr: *const u32, expected: u32, timeout_ns: u64) -> u64 {
-    invoke(
-        uapi::KERNITE_CAP_SELF_VSPACE as u64,
-        uapi::KERNITE_INV0_VSPACE_FUTEX_WAIT as u64,
-        addr as u64,
-        expected as u64,
-        timeout_ns,
-        0,
+    invoke_words(
+        CapRef::flat(uapi::KERNITE_CAP_SELF_VSPACE as u64),
+        uapi::KERNITE_INV0_VSPACE_FUTEX_WAIT,
+        uapi::KERNITE_INV_VSPACE_FUTEX_WAIT,
+        [addr as u64, expected as u64, timeout_ns, 0],
     )
     .error
 }
@@ -107,13 +307,11 @@ pub fn futex_wait_timeout(addr: *const u32, expected: u32, timeout_ns: u64) -> u
 /// actually woken in `value`.
 #[inline]
 pub fn futex_wake(addr: *const u32, count: u32) -> u64 {
-    invoke(
-        uapi::KERNITE_CAP_SELF_VSPACE as u64,
-        uapi::KERNITE_INV0_VSPACE_FUTEX_WAKE as u64,
-        addr as u64,
-        count as u64,
-        0,
-        0,
+    invoke_words(
+        CapRef::flat(uapi::KERNITE_CAP_SELF_VSPACE as u64),
+        uapi::KERNITE_INV0_VSPACE_FUTEX_WAKE,
+        uapi::KERNITE_INV_VSPACE_FUTEX_WAKE,
+        [addr as u64, count as u64, 0, 0],
     )
     .value
 }
@@ -130,13 +328,16 @@ pub fn futex_requeue(
     requeue_count: u32,
     expected: u32,
 ) -> u64 {
-    invoke(
-        uapi::KERNITE_CAP_SELF_VSPACE as u64,
-        uapi::KERNITE_INV0_VSPACE_FUTEX_REQUEUE as u64,
-        addr as u64,
-        requeue_addr as u64,
-        ((wake_count as u64) << 32) | (requeue_count as u64),
-        expected as u64,
+    invoke_words(
+        CapRef::flat(uapi::KERNITE_CAP_SELF_VSPACE as u64),
+        uapi::KERNITE_INV0_VSPACE_FUTEX_REQUEUE,
+        uapi::KERNITE_INV_VSPACE_FUTEX_REQUEUE,
+        [
+            addr as u64,
+            requeue_addr as u64,
+            ((wake_count as u64) << 32) | (requeue_count as u64),
+            expected as u64,
+        ],
     )
     .value
 }
@@ -151,13 +352,11 @@ pub fn futex_requeue(
 /// main thread rather than itself. Does not return on success.
 #[inline]
 pub fn thread_exit() -> ! {
-    let _ = invoke(
-        uapi::KERNITE_CAP_SELF_TCB as u64,
-        uapi::KERNITE_INV0_TCB_EXIT_SELF as u64,
-        0,
-        0,
-        0,
-        0,
+    let _ = invoke_words(
+        CapRef::flat(uapi::KERNITE_CAP_SELF_TCB as u64),
+        uapi::KERNITE_INV0_TCB_EXIT_SELF,
+        uapi::KERNITE_INV_TCB_EXIT_SELF,
+        [0, 0, 0, 0],
     );
     loop {
         core::hint::spin_loop();
@@ -176,13 +375,11 @@ pub fn thread_exit() -> ! {
 /// `TronaResult` whose `value` is the number of bytes copied.
 #[inline]
 pub fn rng_read_bytes(rng_cap: u64, dst: *mut u8, len: usize) -> TronaResult {
-    invoke(
-        rng_cap,
-        uapi::KERNITE_INV0_RNG_READ as u64,
-        dst as u64,
-        len as u64,
-        0,
-        0,
+    invoke_words(
+        CapRef::flat(rng_cap),
+        uapi::KERNITE_INV0_RNG_READ,
+        uapi::KERNITE_INV_RNG_READ,
+        [dst as u64, len as u64, 0, 0],
     )
 }
 
@@ -194,13 +391,11 @@ pub fn rng_read_bytes(rng_cap: u64, dst: *mut u8, len: usize) -> TronaResult {
 /// `TronaSysMemInfo` shape will be promoted to `uapi`.
 #[inline]
 pub fn system_get_meminfo_raw(sysinfo_cap: u64, out_uaddr: u64) -> u64 {
-    invoke(
-        sysinfo_cap,
-        uapi::KERNITE_INV0_SYSINFO_GET_MEMINFO as u64,
-        out_uaddr,
-        0,
-        0,
-        0,
+    invoke_words(
+        CapRef::flat(sysinfo_cap),
+        uapi::KERNITE_INV0_SYSINFO_GET_MEMINFO,
+        uapi::KERNITE_INV_T_SYSINFO_GET_MEMINFO,
+        [out_uaddr, 0, 0, 0],
     )
     .error
 }
@@ -228,13 +423,11 @@ pub fn system_get_info_raw(
     cpu_array_uaddr: u64,
     capacity: u64,
 ) -> TronaResult {
-    invoke(
-        sysinfo_cap,
-        uapi::KERNITE_INV0_SYSINFO_GET_INFO as u64,
-        header_uaddr,
-        cpu_array_uaddr,
-        capacity,
-        0,
+    invoke_words(
+        CapRef::flat(sysinfo_cap),
+        uapi::KERNITE_INV0_SYSINFO_GET_INFO,
+        uapi::KERNITE_INV_SYSINFO_GET_INFO,
+        [header_uaddr, cpu_array_uaddr, capacity, 0],
     )
 }
 
@@ -256,13 +449,11 @@ pub fn system_get_info<H, C>(
 /// return on success.
 #[inline]
 pub fn system_shutdown(syscontrol_cap: u64) -> ! {
-    invoke(
-        syscontrol_cap,
-        uapi::KERNITE_INV0_SYSTEM_SHUTDOWN as u64,
-        0,
-        0,
-        0,
-        0,
+    invoke_words(
+        CapRef::flat(syscontrol_cap),
+        uapi::KERNITE_INV0_SYSTEM_SHUTDOWN,
+        uapi::KERNITE_INV_SYSTEM_SHUTDOWN,
+        [0, 0, 0, 0],
     );
     loop {}
 }
@@ -272,13 +463,11 @@ pub fn system_shutdown(syscontrol_cap: u64) -> ! {
 /// preferred behaviour for hot paths that cannot fail meaningfully).
 #[inline]
 pub fn clock_read_monotonic(clock_cap: u64) -> u64 {
-    let r = invoke(
-        clock_cap,
-        uapi::KERNITE_INV0_CLOCK_READ as u64,
-        uapi::KERNITE_CLOCK_ID_MONOTONIC as u64,
-        0,
-        0,
-        0,
+    let r = invoke_words(
+        CapRef::flat(clock_cap),
+        uapi::KERNITE_INV0_CLOCK_READ,
+        uapi::KERNITE_INV_CLOCK_READ,
+        [uapi::KERNITE_CLOCK_ID_MONOTONIC as u64, 0, 0, 0],
     );
     if r.error == 0 { r.value } else { 0 }
 }
@@ -287,13 +476,11 @@ pub fn clock_read_monotonic(clock_cap: u64) -> u64 {
 /// nanoseconds since the UNIX epoch, or `0` on error.
 #[inline]
 pub fn clock_read_realtime(clock_cap: u64) -> u64 {
-    let r = invoke(
-        clock_cap,
-        uapi::KERNITE_INV0_CLOCK_READ as u64,
-        uapi::KERNITE_CLOCK_ID_REALTIME as u64,
-        0,
-        0,
-        0,
+    let r = invoke_words(
+        CapRef::flat(clock_cap),
+        uapi::KERNITE_INV0_CLOCK_READ,
+        uapi::KERNITE_INV_CLOCK_READ,
+        [uapi::KERNITE_CLOCK_ID_REALTIME as u64, 0, 0, 0],
     );
     if r.error == 0 { r.value } else { 0 }
 }
@@ -303,12 +490,10 @@ pub fn clock_read_realtime(clock_cap: u64) -> u64 {
 /// folded into the single-syscall ABI as `TCB_YIELD` on `CAP_SELF_TCB`.
 #[inline]
 pub fn yield_now() {
-    let _ = invoke(
-        uapi::KERNITE_CAP_SELF_TCB as u64,
-        uapi::KERNITE_INV0_TCB_YIELD as u64,
-        0,
-        0,
-        0,
-        0,
+    let _ = invoke_words(
+        CapRef::flat(uapi::KERNITE_CAP_SELF_TCB as u64),
+        uapi::KERNITE_INV0_TCB_YIELD,
+        uapi::KERNITE_INV_TCB_YIELD,
+        [0, 0, 0, 0],
     );
 }

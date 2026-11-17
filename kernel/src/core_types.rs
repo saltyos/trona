@@ -32,23 +32,59 @@ pub type Cap = u64;
 /// where the slot allocator lives) borrow as a `CapRef` for invocation.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct CapRef {
+    cnode: CNodeRef,
     addr: Cap,
     depth: u8,
 }
 
 impl CapRef {
     /// The null reference (slot 0, depth 0). Treated as "absent".
-    pub const NULL: Self = Self { addr: 0, depth: 0 };
+    pub const NULL: Self = Self {
+        cnode: CNodeRef::ROOT,
+        addr: 0,
+        depth: 0,
+    };
 
     /// A reference to a flat root-CNode slot (invoke depth 0).
     pub const fn flat(addr: Cap) -> Self {
-        Self { addr, depth: 0 }
+        Self {
+            cnode: CNodeRef::ROOT,
+            addr,
+            depth: 0,
+        }
     }
 
     /// A reference carrying an explicit CSpace invoke depth (for slots
     /// inside an expansion sub-CNode).
     pub const fn at_depth(addr: Cap, depth: u8) -> Self {
-        Self { addr, depth }
+        Self {
+            cnode: CNodeRef::ROOT,
+            addr,
+            depth,
+        }
+    }
+
+    /// Entry `index` of the CNode `cnode` names, resolved through it for
+    /// exactly `depth` bits: the CNode's guard bits plus its radix. Only the
+    /// descriptor call can name such an entry as an operand.
+    pub const fn in_cnode(cnode: CNodeRef, index: Cap, depth: u8) -> Self {
+        Self {
+            cnode,
+            addr: index,
+            depth,
+        }
+    }
+
+    /// The CNode authority the reference is relative to;
+    /// [`CNodeRef::ROOT`] for a slot of the root CSpace.
+    pub const fn cnode(&self) -> CNodeRef {
+        self.cnode
+    }
+
+    /// The entry's index inside [`Self::cnode`]; the slot address for a
+    /// slot of the root CSpace.
+    pub const fn index(&self) -> Cap {
+        self.addr
     }
 
     /// The raw slot address, for staging into the IPC buffer / syscall
@@ -84,6 +120,173 @@ impl Default for CapRef {
     /// than a stale address.
     fn default() -> Self {
         Self::NULL
+    }
+}
+
+/// A CNode authority, named from the root CSpace: the CNode capability at
+/// `cnode_addr`, walked from the root for `cnode_depth` bits, or with
+/// `cnode_depth` 0 the root entry at index `cnode_addr` itself.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub struct CNodeRef {
+    cnode_addr: Cap,
+    cnode_depth: u8,
+}
+
+impl CNodeRef {
+    /// The process's own root CSpace, through its well-known slot.
+    pub const ROOT: Self = Self {
+        cnode_addr: uapi::KERNITE_CAP_SELF_CSPACE,
+        cnode_depth: 0,
+    };
+
+    /// A CNode authority from its root CSpace path.
+    ///
+    /// # Safety
+    /// `cnode_addr` / `cnode_depth` must name a CNode capability of the
+    /// current root CSpace.
+    pub const unsafe fn from_raw(cnode_addr: Cap, cnode_depth: u8) -> Self {
+        Self {
+            cnode_addr,
+            cnode_depth,
+        }
+    }
+
+    pub const fn cnode_addr(&self) -> Cap {
+        self.cnode_addr
+    }
+
+    pub const fn cnode_depth(&self) -> u8 {
+        self.cnode_depth
+    }
+
+    /// True for the process's own root CSpace named through its
+    /// well-known slot.
+    pub const fn is_root(&self) -> bool {
+        self.cnode_addr == uapi::KERNITE_CAP_SELF_CSPACE && self.cnode_depth == 0
+    }
+}
+
+/// The wire form of a [`CNodeRef`] (`struct kernite_cnode_ref`).
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct KerniteCNodeRef {
+    pub cnode_addr: u64,
+    pub cnode_depth: u8,
+    pub reserved0: [u8; 7],
+}
+
+/// The wire form of a capability operand (`struct kernite_cap_ref`).
+/// `rights` is zero on every operand.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct KerniteCapRef {
+    pub cnode: KerniteCNodeRef,
+    pub index: u64,
+    pub depth: u8,
+    pub reserved0: [u8; 3],
+    pub rights: u32,
+}
+
+impl KerniteCapRef {
+    pub const NULL: Self = Self {
+        cnode: KerniteCNodeRef {
+            cnode_addr: 0,
+            cnode_depth: 0,
+            reserved0: [0; 7],
+        },
+        index: 0,
+        depth: 0,
+        reserved0: [0; 3],
+        rights: 0,
+    };
+
+    /// The operand naming entry `index` of the CNode `cnode` for `depth`
+    /// bits.
+    pub const fn new(cnode: CNodeRef, index: u64, depth: u8) -> Self {
+        Self {
+            cnode: KerniteCNodeRef {
+                cnode_addr: cnode.cnode_addr,
+                cnode_depth: cnode.cnode_depth,
+                reserved0: [0; 7],
+            },
+            index,
+            depth,
+            reserved0: [0; 3],
+            rights: 0,
+        }
+    }
+}
+
+pub const KERNITE_INVOKE_MAX_ARGS: usize = uapi::KERNITE_INVOKE_MAX_ARGS as usize;
+pub const KERNITE_INVOKE_MAX_CAPS: usize = uapi::KERNITE_INVOKE_MAX_CAPS as usize;
+
+/// The descriptor the descriptor call (`KERNITE_SYS_INVOKE_DESC`) passes
+/// (`struct kernite_invoke_desc`).
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct KerniteInvokeDesc {
+    pub target: KerniteCapRef,
+    pub label: u64,
+    pub arg_count: u64,
+    pub args: [u64; KERNITE_INVOKE_MAX_ARGS],
+    pub cap_count: u64,
+    pub caps: [KerniteCapRef; KERNITE_INVOKE_MAX_CAPS],
+    pub cancel_producer: KerniteCapRef,
+    pub cancel_observer: KerniteCapRef,
+}
+
+const _: () = {
+    assert!(core::mem::size_of::<KerniteCapRef>() == core::mem::size_of::<uapi::kernite_cap_ref>());
+    assert!(
+        core::mem::offset_of!(KerniteCapRef, rights)
+            == core::mem::offset_of!(uapi::kernite_cap_ref, rights)
+    );
+    assert!(
+        core::mem::size_of::<KerniteInvokeDesc>()
+            == core::mem::size_of::<uapi::kernite_invoke_desc>()
+    );
+    assert!(
+        core::mem::offset_of!(KerniteInvokeDesc, caps)
+            == core::mem::offset_of!(uapi::kernite_invoke_desc, caps)
+    );
+    assert!(
+        core::mem::offset_of!(KerniteInvokeDesc, cancel_observer)
+            == core::mem::offset_of!(uapi::kernite_invoke_desc, cancel_observer)
+    );
+};
+
+impl KerniteInvokeDesc {
+    /// A descriptor for `label` on `target` with no argument words and no
+    /// capability operands.
+    pub const fn new(target: KerniteCapRef, label: u64) -> Self {
+        Self {
+            target,
+            label,
+            arg_count: 0,
+            args: [0; KERNITE_INVOKE_MAX_ARGS],
+            cap_count: 0,
+            caps: [KerniteCapRef::NULL; KERNITE_INVOKE_MAX_CAPS],
+            cancel_producer: KerniteCapRef::NULL,
+            cancel_observer: KerniteCapRef::NULL,
+        }
+    }
+
+    /// The descriptor with `args` as its argument words; at most
+    /// [`KERNITE_INVOKE_MAX_ARGS`] are taken.
+    pub fn with_args(mut self, args: &[u64]) -> Self {
+        let n = args.len().min(KERNITE_INVOKE_MAX_ARGS);
+        self.args[..n].copy_from_slice(&args[..n]);
+        self.arg_count = n as u64;
+        self
+    }
+
+    /// The descriptor with `caps` as its capability operands; at most
+    /// [`KERNITE_INVOKE_MAX_CAPS`] are taken.
+    pub fn with_caps(mut self, caps: &[KerniteCapRef]) -> Self {
+        let n = caps.len().min(KERNITE_INVOKE_MAX_CAPS);
+        self.caps[..n].copy_from_slice(&caps[..n]);
+        self.cap_count = n as u64;
+        self
     }
 }
 

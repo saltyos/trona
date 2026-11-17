@@ -445,8 +445,69 @@ pub unsafe fn runtime_init_slot_allocator() -> bool {
                 crate::core::slot_alloc::reserve_expand_temp_slot(temp);
             }
         }
+        trona_kernel::syscall::set_root_bits(slot_alloc::root_bits());
+        if program_requests_descriptor_calls() {
+            let _ = use_descriptor_calls();
+        }
         true
     }
+}
+
+/// The root CSpace radix as `CNODE_GET_INFO` reports it in the IPC buffer
+/// words; 0 when the query fails.
+fn queried_root_bits() -> u8 {
+    let info = trona_kernel::invoke::cnode_get_info(trona_kernel::core_types::CapRef::flat(
+        uapi::KERNITE_CAP_SELF_CSPACE,
+    ));
+    if info.error != 0 {
+        return 0;
+    }
+    let ctx = current_ipc_ctx();
+    // SAFETY: the calling thread's IPC buffer holds the reply words the
+    // kernel just wrote: guard, guard bits, size bits, slot count.
+    unsafe {
+        if ctx.is_null() || (*ctx).ipc_buffer.is_null() {
+            return 0;
+        }
+        (*(*ctx).ipc_buffer).msg[2] as u8
+    }
+}
+
+unsafe extern "C" {
+    /// Defined, nonzero, by a program whose library calls issue the
+    /// descriptor call; absent, they issue the register call.
+    #[linkage = "extern_weak"]
+    static __trona_invoke_desc_form: *const u8;
+}
+
+fn program_requests_descriptor_calls() -> bool {
+    // SAFETY: a weak reference reads as null when no object defines the
+    // symbol; a defined one is a static byte.
+    unsafe {
+        let form = __trona_invoke_desc_form;
+        !form.is_null() && *form != 0
+    }
+}
+
+/// Make this process's library calls issue the descriptor call. A slot is
+/// taken from the slot allocator and kept empty for the rest of the process
+/// to name absent optional operands. Returns false, leaving the register
+/// call, when the root CSpace radix or that slot is unavailable.
+pub fn use_descriptor_calls() -> bool {
+    let root = match slot_alloc::root_bits() {
+        0 => queried_root_bits(),
+        bits => bits,
+    };
+    if root == 0 {
+        return false;
+    }
+    trona_kernel::syscall::set_root_bits(root);
+    let Some(absent) = slot_alloc::slot_alloc() else {
+        return false;
+    };
+    trona_kernel::syscall::set_absent_slot(absent);
+    trona_kernel::syscall::set_invoke_form(trona_kernel::syscall::InvokeForm::Descriptor);
+    true
 }
 
 pub fn runtime_slot_allocator_matches_layout() -> bool {
