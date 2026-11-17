@@ -445,7 +445,12 @@ pub unsafe fn runtime_init_slot_allocator() -> bool {
                 crate::core::slot_alloc::reserve_expand_temp_slot(temp);
             }
         }
+        // The form, the radix and the absent-operand slot belong to this
+        // CSpace: a fork child inherits the parent's values in memory and
+        // sets them up again here from the register call.
+        trona_kernel::syscall::set_invoke_form(trona_kernel::syscall::InvokeForm::Register);
         trona_kernel::syscall::set_root_bits(slot_alloc::root_bits());
+        trona_kernel::syscall::set_absent_slot(0);
         if program_requests_descriptor_calls() {
             let _ = use_descriptor_calls();
         }
@@ -502,7 +507,7 @@ pub fn use_descriptor_calls() -> bool {
         return false;
     }
     trona_kernel::syscall::set_root_bits(root);
-    let Some(absent) = slot_alloc::slot_alloc() else {
+    let Some(absent) = slot_alloc::slot_alloc_no_expand() else {
         return false;
     };
     trona_kernel::syscall::set_absent_slot(absent);
