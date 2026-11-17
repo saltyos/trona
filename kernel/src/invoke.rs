@@ -1606,6 +1606,52 @@ pub fn device_control_create_irq_handler(
 }
 
 // ---------------------------------------------------------------------------
+// KernelDebug operations.
+// ---------------------------------------------------------------------------
+
+/// The counts of calls the threads of `vspace` entered through the register
+/// call and through the descriptor call, read from the kernel's trap
+/// counters through `kdebug`. `None` when the kernel refuses the query.
+///
+/// # Safety
+/// `ctx` must be the calling thread's live IPC context: the kernel returns
+/// the counts in its IPC buffer words 0 and 1.
+pub unsafe fn kdebug_trap_counts(
+    kdebug: CapRef,
+    vspace: CapRef,
+    ctx: *const IpcContext,
+) -> Option<(u64, u64)> {
+    let r = if S::uses_descriptor() {
+        S::invoke_operands(
+            kdebug,
+            uapi::KERNITE_INV_KDEBUG_DUMP_STATE,
+            &[uapi::KERNITE_KDEBUG_TOPIC_TRAP_COUNTS],
+            &[S::operand(vspace)],
+        )
+    } else {
+        invoke(
+            kdebug.addr(),
+            uapi::KERNITE_INV0_KDEBUG_DUMP_STATE as u64,
+            uapi::KERNITE_KDEBUG_TOPIC_TRAP_COUNTS,
+            vspace.addr(),
+            0,
+            0,
+        )
+    };
+    if r.error != 0 {
+        return None;
+    }
+    // SAFETY: the caller's contract; the kernel just wrote both words.
+    unsafe {
+        if ctx.is_null() || (*ctx).ipc_buffer.is_null() {
+            return None;
+        }
+        let buf = (*ctx).ipc_buffer;
+        Some(((*buf).msg[0], (*buf).msg[1]))
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Depth-aware helpers for CNode hierarchy (expanded CSpace).
 // ---------------------------------------------------------------------------
 
