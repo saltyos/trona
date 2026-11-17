@@ -12,10 +12,7 @@
 //! single definition serves any server. Each server holds its own
 //! instance adopting its own untyped chunks.
 
-use uapi::{
-    KERNITE_CAP_SELF_CSPACE, KERNITE_INV0_CNODE_REVOKE, KERNITE_INV0_UNTYPED_RESET,
-    KERNITE_INV0_UNTYPED_RETYPE, KERNITE_OBJ_FRAME,
-};
+use uapi::{KERNITE_CAP_SELF_CSPACE, KERNITE_OBJ_FRAME};
 
 pub const MAX_CHUNKS: usize = 16;
 
@@ -80,15 +77,13 @@ impl FrameAllocator {
                 if (chunk.size_bits as u64) < 12 {
                     continue;
                 }
-                let r = trona_kernel::syscall::invoke(
-                    chunk.cap,
-                    KERNITE_INV0_UNTYPED_RETYPE as u64,
+                let r = trona_kernel::invoke::untyped_retype(
+                    trona_kernel::core_types::CapRef::flat(chunk.cap),
                     obj_type,
                     size_bits,
                     dest_slot,
-                    0,
                 );
-                if r.error == 0 {
+                if r == 0 {
                     self.chunks[idx].children_live += 1;
                     return Some(idx);
                 }
@@ -109,13 +104,9 @@ impl FrameAllocator {
     }
 
     pub fn release_child(&mut self, cap_slot: u64, chunk_idx: usize) {
-        let _ = trona_kernel::syscall::invoke(
-            KERNITE_CAP_SELF_CSPACE as u64,
-            KERNITE_INV0_CNODE_REVOKE as u64,
+        let _ = trona_kernel::invoke::cnode_revoke(
+            trona_kernel::core_types::CapRef::flat(KERNITE_CAP_SELF_CSPACE as u64),
             cap_slot,
-            0,
-            0,
-            0,
         );
         if chunk_idx >= MAX_CHUNKS {
             return;
@@ -126,13 +117,11 @@ impl FrameAllocator {
         }
         chunk.children_live -= 1;
         if chunk.children_live == 0 {
-            let _ = trona_kernel::syscall::invoke(
-                chunk.cap,
-                KERNITE_INV0_UNTYPED_RESET as u64,
-                0,
-                0,
-                0,
-                0,
+            let _ = trona_kernel::syscall::invoke_words(
+                trona_kernel::core_types::CapRef::flat(chunk.cap),
+                uapi::KERNITE_INV0_UNTYPED_RESET,
+                uapi::KERNITE_INV_UNTYPED_RESET,
+                [0, 0, 0, 0],
             );
         }
     }
@@ -142,13 +131,11 @@ impl FrameAllocator {
             if chunk.active == 0 || chunk.children_live != 0 {
                 continue;
             }
-            let _ = trona_kernel::syscall::invoke(
-                chunk.cap,
-                KERNITE_INV0_UNTYPED_RESET as u64,
-                0,
-                0,
-                0,
-                0,
+            let _ = trona_kernel::syscall::invoke_words(
+                trona_kernel::core_types::CapRef::flat(chunk.cap),
+                uapi::KERNITE_INV0_UNTYPED_RESET,
+                uapi::KERNITE_INV_UNTYPED_RESET,
+                [0, 0, 0, 0],
             );
         }
     }

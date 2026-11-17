@@ -8,7 +8,7 @@
 //! consume from the calling thread's own `EventQueue`. Records arrive
 //! from two producers:
 //!
-//! - **Timer expiry** — `KERNITE_INV0_TIMER_SET` arms the thread's own
+//! - **Timer expiry** — `TIMER_SET` arms the thread's own
 //!   `Timer` bound to the wakeup EQ. Sleep paths tag their record
 //!   with `WAKEUP_COOKIE_TIMER` so the dispatch loop can recognise
 //!   the wake reason.
@@ -277,15 +277,14 @@ fn arm_signal_watch(eq: u64) -> Result<(), ()> {
             }
         }
     };
-    let arm = trona_kernel::syscall::invoke(
-        watch,
-        uapi::KERNITE_INV0_WATCH_REGISTER as u64,
-        signal_pipe.addr(),
-        eq,
+    let arm = trona_kernel::invoke::watch_register(
+        trona_kernel::core_types::CapRef::flat(watch),
+        signal_pipe.cap_ref(),
+        trona_kernel::core_types::CapRef::flat(eq),
         uapi::KERNITE_STATE_READABLE as u64,
         WAKEUP_COOKIE_SIGNAL_PIPE,
     );
-    if arm.error != 0 { Err(()) } else { Ok(()) }
+    if arm != 0 { Err(()) } else { Ok(()) }
 }
 
 /// Consume a single ready signal record from the per-process signal
@@ -308,13 +307,11 @@ pub fn drain_signal_pipe() -> usize {
         return 0;
     }
 
-    let r = trona_kernel::syscall::invoke(
-        signal_pipe.addr(),
-        uapi::KERNITE_INV0_MP_READ as u64,
-        0,
-        0,
-        0,
-        0,
+    let r = trona_kernel::syscall::invoke_words(
+        signal_pipe.cap_ref(),
+        uapi::KERNITE_INV0_MP_READ,
+        uapi::KERNITE_INV_MP_READ,
+        [0, 0, 0, 0],
     );
     if r.error != 0 {
         return 0;
@@ -340,13 +337,11 @@ pub fn drain_signal_pipe() -> usize {
 pub fn wait_record() -> Option<WakeupRecord> {
     let eq = ensure_wakeup_eq()?;
     let _ = arm_signal_watch(eq);
-    let r = trona_kernel::syscall::invoke(
-        eq,
-        uapi::KERNITE_INV0_EQ_WAIT as u64,
-        trona_kernel::ipc::IPC_TIMEOUT_BLOCK_FOREVER,
-        0,
-        0,
-        0,
+    let r = trona_kernel::syscall::invoke_words(
+        trona_kernel::core_types::CapRef::flat(eq),
+        uapi::KERNITE_INV0_EQ_WAIT,
+        uapi::KERNITE_INV_EQ_WAIT,
+        [trona_kernel::ipc::IPC_TIMEOUT_BLOCK_FOREVER, 0, 0, 0],
     );
     if r.error != 0 {
         return None;
@@ -359,7 +354,12 @@ pub fn wait_record() -> Option<WakeupRecord> {
 pub fn poll_record() -> Option<WakeupRecord> {
     let eq = ensure_wakeup_eq()?;
     let _ = arm_signal_watch(eq);
-    let r = trona_kernel::syscall::invoke(eq, uapi::KERNITE_INV0_EQ_POLL as u64, 0, 0, 0, 0);
+    let r = trona_kernel::syscall::invoke_words(
+        trona_kernel::core_types::CapRef::flat(eq),
+        uapi::KERNITE_INV0_EQ_POLL,
+        uapi::KERNITE_INV_EQ_POLL,
+        [0, 0, 0, 0],
+    );
     if r.error != 0 || r.value == 0 {
         return None;
     }
@@ -379,15 +379,14 @@ pub fn arm_sleep_timer(deadline_ns: u64) -> i32 {
         Some(t) => t,
         None => return -1,
     };
-    let r = trona_kernel::syscall::invoke(
-        timer,
-        uapi::KERNITE_INV0_TIMER_SET as u64,
+    let r = trona_kernel::invoke::timer_set(
+        trona_kernel::core_types::CapRef::flat(timer),
         deadline_ns,
         0,
-        eq,
+        trona_kernel::core_types::CapRef::flat(eq),
         WAKEUP_COOKIE_TIMER,
     );
-    if r.error != 0 { -1 } else { 0 }
+    if r != 0 { -1 } else { 0 }
 }
 
 /// Cancel any in-flight sleep timer arming on the calling thread's
@@ -415,8 +414,12 @@ pub fn cancel_sleep_timer() {
     if timer == 0 {
         return;
     }
-    let _ =
-        trona_kernel::syscall::invoke(timer, uapi::KERNITE_INV0_TIMER_CANCEL as u64, 0, 0, 0, 0);
+    let _ = trona_kernel::syscall::invoke_words(
+        trona_kernel::core_types::CapRef::flat(timer),
+        uapi::KERNITE_INV0_TIMER_CANCEL,
+        uapi::KERNITE_INV_TIMER_CANCEL,
+        [0, 0, 0, 0],
+    );
 }
 
 /// Reset the calling thread's wakeup state after `fork`. The child

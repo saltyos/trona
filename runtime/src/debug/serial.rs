@@ -13,7 +13,6 @@
 
 use trona_kernel::core_types::TronaMsg;
 use trona_kernel::ipc;
-use trona_kernel::syscall::invoke;
 use trona_protocol::log::{LOG_INLINE_BYTES, LOG_WRITE};
 
 #[inline(always)]
@@ -71,13 +70,11 @@ pub fn serial_putc(c: u8) {
     }
     let cap = kdebug_cap();
     if cap != 0 {
-        invoke(
-            cap,
-            uapi::KERNITE_INV0_KDEBUG_PUTCHAR as u64,
-            c as u64,
-            0,
-            0,
-            0,
+        trona_kernel::syscall::invoke_words(
+            trona_kernel::core_types::CapRef::flat(cap),
+            uapi::KERNITE_INV0_KDEBUG_PUTCHAR,
+            uapi::KERNITE_INV_KDEBUG_PUTCHAR,
+            [c as u64, 0, 0, 0],
         );
         return;
     }
@@ -100,13 +97,11 @@ pub fn serial_puts(s: &[u8]) {
             } else {
                 256
             };
-            invoke(
-                cap,
-                uapi::KERNITE_INV0_KDEBUG_PUTBUF as u64,
-                s[off..].as_ptr() as u64,
-                chunk as u64,
-                0,
-                0,
+            trona_kernel::syscall::invoke_words(
+                trona_kernel::core_types::CapRef::flat(cap),
+                uapi::KERNITE_INV0_KDEBUG_PUTBUF,
+                uapi::KERNITE_INV_KDEBUG_PUTBUF,
+                [s[off..].as_ptr() as u64, chunk as u64, 0, 0],
             );
             off += chunk;
         }

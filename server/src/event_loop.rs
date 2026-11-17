@@ -448,15 +448,18 @@ impl<D: EqDispatcher> EventLoop<D> {
         A: FnMut(),
     {
         release_before_wait();
-        let eq_err = trona_kernel::syscall::invoke(
-            self.eq_cap,
-            uapi::KERNITE_INV0_EQ_WAIT as u64,
-            // The event loop blocks indefinitely for the next event; a
-            // timed wait would pass a finite absolute deadline here.
-            trona_kernel::ipc::IPC_TIMEOUT_BLOCK_FOREVER,
-            0,
-            0,
-            0,
+        let eq_err = trona_kernel::syscall::invoke_words(
+            trona_kernel::core_types::CapRef::flat(self.eq_cap),
+            uapi::KERNITE_INV0_EQ_WAIT,
+            uapi::KERNITE_INV_EQ_WAIT,
+            [
+                // The event loop blocks indefinitely for the next event; a
+                // timed wait would pass a finite absolute deadline here.
+                trona_kernel::ipc::IPC_TIMEOUT_BLOCK_FOREVER,
+                0,
+                0,
+                0,
+            ],
         );
         acquire_after_wait();
         if eq_err.error != 0 {
